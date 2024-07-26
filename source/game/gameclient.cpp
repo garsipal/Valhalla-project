@@ -1939,7 +1939,7 @@ namespace game
                 int gun = getint(p);
                 if(!validgun(gun)) return;
                 d->gunselect = gun;
-                playsound(S_WEAPON_LOAD, d);
+                playswitchsound(d, gun);
                 d->lastswitch = lastmillis;
                 break;
             }
