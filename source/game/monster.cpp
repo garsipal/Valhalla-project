@@ -364,7 +364,7 @@ namespace game
                 if(!gibbed()) health = -50;
                 if(gore) gibeffect(max(-health, 0), vel, this);
                 int atk = monstertypes[mtype].atk;
-                if(monstertypes[mtype].isexplosive) game::explode(true, this, o, vel, NULL, attacks[atk].damage, atk);
+                // if(monstertypes[mtype].isexplosive) game::explode(true, this, o, vel, NULL, attacks[atk].damage, atk, true);
             }
             else if (!(flags & HIT_HEAD))
             {

@@ -433,6 +433,7 @@
     <ClInclude Include="..\game\entity.h" />
     <ClInclude Include="..\game\gamemode.h" />
     <ClInclude Include="..\game\monster.h" />
+    <ClInclude Include="..\game\projectile.h" />
     <ClInclude Include="..\game\weapon.h" />
     <ClInclude Include="..\shared\command.h" />
     <ClInclude Include="..\shared\cube.h" />
@@ -981,6 +982,7 @@
     </ClCompile>
     <ClCompile Include="..\game\gamephysics.cpp" />
     <ClCompile Include="..\game\monster.cpp" />
+    <ClCompile Include="..\game\projectile.cpp" />
     <ClCompile Include="..\shared\crypto.cpp" />
     <ClCompile Include="..\shared\geom.cpp" />
     <ClCompile Include="..\shared\glemu.cpp" />

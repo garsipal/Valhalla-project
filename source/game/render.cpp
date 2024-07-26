@@ -464,7 +464,6 @@ namespace game
             renderplayer(self, 1, third ? 0 : MDL_ONLYSHADOW);
         booteffect(self);
         entities::renderentities();
-        renderbouncers();
         renderprojectiles();
         rendermonsters();
         if(cmode) cmode->rendergame();
@@ -604,7 +603,7 @@ namespace game
         a[ai++] = modelattach("tag_eject", &d->eject);
         swaypitch += swaylandpitch;
         float yaw = d->yaw + swayyaw, pitch = d->pitch + swaypitch, roll = d->roll * swayrollfactor;
-        if (d->attacking == ACT_SECONDARY && d->gunselect == GUN_PULSE)
+        if (d->attacking && attacks[guns[d->gunselect].attacks[d->attacking]].isloop)
         {
             anim |= ANIM_LOOP;
             basetime = 0;
@@ -717,7 +716,7 @@ namespace game
     void preload()
     {
         preloadweapons();
-        preloadbouncers();
+        preloadprojectiles();
         preloadplayermodel();
         preloadsounds();
         entities::preloadentities();

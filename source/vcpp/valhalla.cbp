@@ -183,6 +183,7 @@
 		<Unit filename="../game/gameserver.cpp" />
 		<Unit filename="../game/monster.cpp" />
 		<Unit filename="../game/monster.h" />
+		<Unit filename="../game/projectile.cpp" />
 		<Unit filename="../game/render.cpp" />
 		<Unit filename="../game/scoreboard.cpp" />
 		<Unit filename="../game/waypoint.cpp" />

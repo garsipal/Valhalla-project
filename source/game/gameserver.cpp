@@ -130,7 +130,7 @@ namespace server
         int lastdeath, deadflush, lastspawn, lifesequence;
         int lastpain, lastdamage, lastregeneration;
         int lastmove, lastshot, lastatk;
-        projectilestate<8> projs, bouncers;
+        projectilestate<8> projectiles;
         int frags, flags, deaths, points, teamkills, shotdamage, damage, spree;
         int lasttimeplayed, timeplayed;
         float effectiveness;
@@ -151,8 +151,7 @@ namespace server
         {
             if(state!=CS_SPECTATOR) state = editstate = CS_DEAD;
             maxhealth = 100;
-            projs.reset();
-            bouncers.reset();
+            projectiles.reset();
 
             timeplayed = 0;
             effectiveness = 0;
@@ -177,8 +176,7 @@ namespace server
         void reassign()
         {
             respawn();
-            projs.reset();
-            bouncers.reset();
+            projectiles.reset();
         }
     };
 
@@ -2397,8 +2395,7 @@ namespace server
                 }
                 ci->state.respawn();
                 sendspawn(ci);
-                ci->state.projs.reset();
-                ci->state.bouncers.reset();
+                ci->state.projectiles.reset();
             }
         }
     }
@@ -2788,6 +2785,10 @@ namespace server
             firstblood = true;
             kflags |= KILL_FIRST;
         }
+        if (flags & HIT_DIRECT)
+        {
+            kflags |= KILL_DIRECT;
+        }
         if(actor->state.spree > 0) switch(actor->state.spree)
         {
             case 5: kflags |= KILL_SPREE; break;
@@ -2919,7 +2920,7 @@ namespace server
         }
         if(!(flags & HIT_MATERIAL))
         {
-            if(attacks[atk].headshotdam && !attacks[atk].projspeed) // weapons deal locational damage only if headshot damage is specified (except for projectiles)
+            if(attacks[atk].headshotdam && !isweaponprojectile(attacks[atk].projectile)) // weapons deal locational damage only if headshot damage is specified (except for projectiles)
             {
                 if(flags & HIT_HEAD)
                 {
@@ -2943,14 +2944,7 @@ namespace server
     void explodeevent::process(clientinfo *ci)
     {
         servstate &gs = ci->state;
-        if(attacks[atk].gravity && attacks[atk].elasticity)
-        {
-            if(!gs.bouncers.remove(id)) return;
-        }
-        else if(attacks[atk].projspeed)
-        {
-            if(!gs.projs.remove(id)) return;
-        }
+        if(!gs.projectiles.remove(id)) return;
         sendf(-1, 1, "ri4x", N_EXPLODEFX, ci->clientnum, atk, id, ci->ownernum);
         loopv(hits)
         {
@@ -2993,13 +2987,9 @@ namespace server
         sendf(-1, 1, "ri3x", N_SHOTEVENT, ci->clientnum, atk, ci->ownernum);
         gs.shotdamage += attacks[atk].damage*attacks[atk].rays;
         bool hit = false;
-        if(attacks[atk].gravity && attacks[atk].elasticity) // elasticity and gravity means it's a bouncer (grenade)
+        if(isweaponprojectile(attacks[atk].projectile)) // projectile speed with no elasticity or gravity means we have a regular projectile (rocket)
         {
-            gs.bouncers.add(id);
-        }
-        else if(attacks[atk].projspeed) // projectile speed with no elasticity or gravity means we have a regular projectile (rocket)
-        {
-            gs.projs.add(id);
+            gs.projectiles.add(id);
         }
         else
         {
@@ -3858,8 +3848,7 @@ namespace server
                     ci->state.editstate = ci->state.state;
                     ci->state.state = CS_EDITING;
                     ci->events.deletecontents();
-                    ci->state.projs.reset();
-                    ci->state.bouncers.reset();
+                    ci->state.projectiles.reset();
                 }
                 else ci->state.state = ci->state.editstate;
                 QUEUE_MSG;

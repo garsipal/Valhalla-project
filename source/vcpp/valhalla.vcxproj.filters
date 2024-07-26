@@ -169,6 +169,9 @@
     <ClCompile Include="..\game\gamephysics.cpp">
       <Filter>game</Filter>
     </ClCompile>
+    <ClCompile Include="..\game\projectile.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\game\ai.h">
@@ -302,6 +305,9 @@
     </ClInclude>
     <ClInclude Include="..\engine\sound.h">
       <Filter>engine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\game\projectile.h">
+      <Filter>game</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

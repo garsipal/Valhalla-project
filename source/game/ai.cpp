@@ -106,7 +106,7 @@ namespace ai
         if(attackrange(d, atk, dist) || (d->skill <= 100 && !rnd(d->skill)))
         {
             if(melee(d)) return true;
-            float skew = clamp(float(lastmillis-d->ai->enemymillis)/float((d->skill*attacks[atk].attackdelay/200.f)), 0.f, attacks[atk].projspeed ? 0.25f : 1e16f),
+            float skew = clamp(float(lastmillis-d->ai->enemymillis)/float((d->skill*attacks[atk].attackdelay/200.f)), 0.f, isweaponprojectile(attacks[atk].projectile) ? 0.25f : 1e16f),
                 offy = yaw-d->yaw, offp = pitch-d->pitch;
             if(offy > 180) offy -= 360;
             else if(offy < -180) offy += 360;
@@ -118,7 +118,7 @@ namespace ai
     vec getaimpos(gameent *d, int atk, gameent *e)
     {
         vec o = e->o;
-        if(attacks[atk].projspeed) o.z += (e->aboveeye*0.2f)-(0.8f*d->eyeheight);
+        if(isweaponprojectile(attacks[atk].projectile)) o.z += (e->aboveeye*0.2f)-(0.8f*d->eyeheight);
         else if(!attacks[atk].gravity) o.z += (e->aboveeye-e->eyeheight)*0.5f; // it's probably a grenade
         if(d->skill <= 100)
         {

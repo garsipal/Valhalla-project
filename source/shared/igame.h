@@ -96,7 +96,6 @@ namespace game
     extern void loadconfigs();
     extern void updateworld();
     extern void initclient();
-    extern void bounced(physent *d, const vec &surface);
     extern void edittrigger(const selinfo &sel, int op, int arg1 = 0, int arg2 = 0, int arg3 = 0, const VSlot *vs = NULL);
     extern void vartrigger(ident *id);
     extern void resetgamestate();
@@ -113,7 +112,7 @@ namespace game
     extern void particletrack(physent *owner, vec &o, vec &d);
     extern void dynlighttrack(physent *owner, vec &o, vec &hud);
     extern void voicecom(int sound, char *text, bool isteam);
-    extern void adddynlights();
+    extern void adddynamiclights();
 
     extern bool allowedittoggle();
     extern bool editing();

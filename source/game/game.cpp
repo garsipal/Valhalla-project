@@ -159,7 +159,7 @@ namespace game
 
     gameent *pointatplayer()
     {
-        loopv(players) if(players[i] != self && intersect(players[i], self->o, worldpos)) return players[i];
+        loopv(players) if(players[i] != self && isintersecting(players[i], self->o, worldpos)) return players[i];
         return NULL;
     }
 
@@ -361,6 +361,7 @@ namespace game
         adddynlight(d->o, 35, lightcolor, 900, 100);
         stopownersounds(d);
         playsound(S_SPAWN, d);
+        d->lastswitch = lastmillis;
     }
 
     void respawn()
@@ -526,10 +527,10 @@ namespace game
         stopownersounds(d);
         if(!restore)
         {
-            bool firstpersondeath = d == self && isfirstpersondeath(),
-                 isnoisy =  d->deathtype != DEATH_FIST && d->deathtype != DEATH_DISRUPT;
+            bool firstpersondeath = d == self && isfirstpersondeath();
+            bool issilent = d->deathtype == DEATH_FIST || d->deathtype == DEATH_HEADSHOT || d->deathtype == DEATH_DISRUPT;
             if(gore && d->gibbed()) gibeffect(max(-d->health, 0), d->vel, d, d->deathtype == 1);
-            else if(!firstpersondeath && deathscream && isnoisy)
+            else if(!firstpersondeath && deathscream && !issilent)
             {
                 playsound(getplayermodelinfo(d).diesound, d); // silent melee kills
             }
@@ -676,6 +677,49 @@ namespace game
         if(spree[0] != '\0') conoutf(CON_GAMEINFO, "%s \f2is on a \fs%s\fr spree!", colorname(actor), spree);
     }
 
+    void applydeathtype(gameent* d, bool issuicide, int atk, int flags)
+    {
+        if (issuicide)
+        {
+            // Force map death style for sucides.
+            d->deathtype = mapdeath;
+            return;
+        }
+
+        if (validatk(atk))
+        {
+            if (attacks[atk].action == ACT_MELEE)
+            {
+                d->deathtype = DEATH_FIST;
+            }
+            else if (atk == ATK_PISTOL_COMBO)
+            {
+                d->deathtype = DEATH_DISRUPT;
+            }
+            else if (attacks[atk].action == ACT_MELEE)
+            {
+                d->deathtype = DEATH_FIST;
+            }
+        }
+
+        if (flags)
+        {
+            if (flags & KILL_HEADSHOT)
+            {
+                if (!d->gibbed()) d->deathtype = DEATH_HEADSHOT;
+                else d->deathtype = DEATH_HEADLESS;
+            }
+            if (flags & KILL_DIRECT)
+            {
+                if (attacks[atk].gun == GUN_GRENADE)
+                {
+                    d->deathtype = DEATH_SHOCK;
+                }
+                else d->deathtype = DEATH_ONFIRE;
+            }
+        }
+    }
+
     VARP(killsound, 0, 1, 1);
 
     void kill(gameent *d, gameent *actor, int atk, int flags)
@@ -700,9 +744,7 @@ namespace game
            else if(killsound) playsound(isally(d, actor) ? S_KILL_ALLY : S_KILL);
         }
         // update player state and reset ai
-        if(attacks[atk].action == ACT_MELEE) d->deathtype = DEATH_FIST;
-        else if(atk == ATK_PISTOL_COMBO) d->deathtype = DEATH_DISRUPT;
-        else if(d == actor && d->deathtype != mapdeath) d->deathtype = mapdeath;
+        applydeathtype(d, d == actor, atk, flags);
         deathstate(d);
         ai::kill(d, actor);
     }
@@ -989,7 +1031,7 @@ namespace game
     {
         if(d==self || (d->type==ENT_PLAYER && ((gameent *)d)->ai))
         {
-            if(d->state!=CS_ALIVE) return;
+            if(d->state != CS_ALIVE) return;
             if(!m_mp(gamemode)) kill(d, d, -1);
             else
             {
@@ -1000,7 +1042,7 @@ namespace game
                     d->suicided = seq;
                 }
             }
-            if(d->deathtype != mapdeath) d->deathtype = mapdeath;
+            applydeathtype(d, true, -1, 0);
         }
         else if(d->type == ENT_AI) suicidemonster((monster *)d);
     }
@@ -1106,9 +1148,9 @@ namespace game
             case S_FOOTSTEP_WATER:
                 return 300;
 
-            case S_BOUNCE_CARTRIDGE_SG:
-            case S_BOUNCE_CARTRIDGE_SMG:
-            case S_BOUNCE_CARTRIDGE_RAILGUN:
+            case S_BOUNCE_EJECT:
+            case S_BOUNCE_EJECT2:
+            case S_BOUNCE_EJECT3:
                 return 100;
 
             default: return 500;
