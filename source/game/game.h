@@ -720,7 +720,7 @@ namespace game
     extern void makeprojectile(gameent* owner, const vec& from, const vec& to, bool islocal, int id, int atk, int type, int lifetime, int speed, float gravity = 0, float elasticity = 0);
     extern void spawnbouncer(const vec& from, gameent* d, int type);
     extern void bounce(physent* d, const vec& surface);
-    extern void collidewithplayer(physent *d, physent *p);
+    extern void collidewithentity(physent* bouncer, physent* collideentity);
     extern void explodeeffects(int atk, gameent* d, bool islocal, int id = 0);
     //extern void applyprojectileeffects(projectile& proj, vec pos, vec dv = vec(0, 0, 0));
 

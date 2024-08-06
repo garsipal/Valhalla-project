@@ -122,9 +122,9 @@ namespace game
         proj->lastbounce = lastmillis;
     }
 
-    void collidewithplayer(physent* a, physent* b)
+    void collidewithentity(physent* bouncer, physent* collideentity)
     {
-        projectile* proj = (projectile*)a;
+        projectile* proj = (projectile*)bouncer;
         proj->isdirect = true;
     }
 
@@ -453,30 +453,35 @@ namespace game
         }
     }
 
-    bool haslifetime(projectile& proj, int time)
+    void checklifetime(projectile& proj, int time)
     {
-        if (proj.flags & ProjFlag_Junk)
+        if (proj.flags & ProjFlag_Weapon)
         {
-            // cheaper variable rate physics for debris, gibs, etc.
+            if ((proj.lifetime -= time) < 0)
+            {
+                proj.isdestroyed = true;
+            }
+        }
+        else if(proj.flags & ProjFlag_Junk)
+        {
+            // Cheaper variable rate physics for debris, gibs and other "junk" projectiles.
             for (int rtime = time; rtime > 0;)
             {
                 int qtime = min(80, rtime);
                 rtime -= qtime;
                 if ((proj.lifetime -= qtime) < 0 || (proj.flags & ProjFlag_Bounce && physics::hasbounced(&proj, qtime / 1000.0f, 0.5f, 0.4f, 0.7f)))
                 {
-                    return false;
-                    break;
+                    proj.isdestroyed = true;
                 }
             }
         }
-        else
-        {
-            if ((proj.lifetime -= time) < 0)
-            {
-                return false;
-            }
-        }
-        return true;
+    }
+
+    void handleprojectileeffects(projectile& proj, vec pos)
+    {
+        handleliquidtransitions(proj);
+        vec v = proj.flags & ProjFlag_Bounce ? pos : vec(proj.offset).mul(proj.offsetmillis / float(OFFSETMILLIS)).add(pos);
+        addprojectileeffects(&proj, v);
     }
 
     void updateprojectiles(int time)
@@ -491,7 +496,6 @@ namespace game
 
             if (proj.flags & ProjFlag_Linear)
             {
-                float damage = attacks[proj.atk].damage;
                 hits.setsize(0);
                 if (proj.islocal)
                 {
@@ -501,7 +505,7 @@ namespace game
                     {
                         dynent* o = iterdynents(j);
                         if (proj.owner == o || o->o.reject(bo, o->radius + br)) continue;
-                        if (candealdamage(o, proj, pos, damage))
+                        if (candealdamage(o, proj, pos, attacks[proj.atk].damage))
                         {
                             proj.isdestroyed = true;
                             proj.isdirect = true;
@@ -512,8 +516,8 @@ namespace game
             }
             if (!proj.isdestroyed)
             {
-                handleliquidtransitions(proj);
-                if (!haslifetime(proj, time))
+                checklifetime(proj, time);
+                if ((lookupmaterial(proj.o) & MATF_VOLUME) == MAT_LAVA)
                 {
                     proj.isdestroyed = true;
                 }
@@ -521,28 +525,33 @@ namespace game
                 {
                     if (proj.flags & ProjFlag_Impact && proj.dist < 4)
                     {
-                        if (proj.o != proj.to) // if original target was moving, re-evaluate endpoint
+                        if (proj.o != proj.to) // If original target was moving, re-evaluate endpoint.
                         {
                             if (raycubepos(proj.o, proj.vel, proj.to, 0, RAY_CLIPMAT | RAY_ALPHAPOLY) >= 4) continue;
                         }
                         proj.isdestroyed = true;
                     }
                 }
-                vec v = proj.flags & ProjFlag_Bounce ? pos : vec(proj.offset).mul(proj.offsetmillis / float(OFFSETMILLIS)).add(pos);
-                addprojectileeffects(&proj, v);
                 if (proj.flags & ProjFlag_Weapon)
                 {
-                    if (proj.flags & ProjFlag_Bounce && !physics::isbouncing(&proj, proj.elasticity, 0.5f, proj.gravity, proj.flags & ProjFlag_Impact)) proj.isdestroyed = true;
-                    if (proj.projtype == Projectile_Rocket2 && proj.bounces >= 2) proj.isdestroyed = true;
+                    if (proj.flags & ProjFlag_Bounce)
+                    {
+                        bool isbouncing = physics::isbouncing(&proj, proj.elasticity, 0.5f, proj.gravity);
+                        bool hasbounced = projs[proj.projtype].maxbounces && proj.bounces >= projs[proj.projtype].maxbounces;
+                        if (!isbouncing || hasbounced)
+                        {
+                            proj.isdestroyed = true;
+                        }
+                    }
                 }
+                handleprojectileeffects(proj, pos);
             }
             checkloopsound(&proj);
             if (proj.isdestroyed)
             {
                 if (isweaponprojectile(proj.projtype))
                 {
-                    float damage = attacks[proj.atk].damage;
-                    explodeprojectile(proj, pos, NULL, damage, proj.islocal);
+                    explodeprojectile(proj, pos, NULL, attacks[proj.atk].damage, proj.islocal);
                     if (proj.islocal)
                     {
                         addmsg(N_EXPLODE, "rci3iv", proj.owner, lastmillis - maptime, proj.atk, proj.id - maptime, hits.length(), hits.length() * sizeof(hitmsg) / sizeof(int), hits.getbuf());
