@@ -812,78 +812,92 @@ namespace physics
         }
     }
 
-    bool hasbounced(physent* d, float secs, float elasticity, float waterfric, float gravity)
+    bool hasbounced(projectile* proj, float secs, float elasticity, float waterfric, float gravity)
     {
         // Collision checks.
-        if (d->physstate != PHYS_BOUNCE && collide(d, vec(0, 0, 0), 0, false)) return true;
-        int mat = lookupmaterial(vec(d->o.x, d->o.y, d->o.z + (d->aboveeye - d->eyeheight) / 2));
+        if (proj->physstate != PHYS_BOUNCE && collide(proj, vec(0, 0, 0), 0, false)) return true;
+        int mat = lookupmaterial(vec(proj->o.x, proj->o.y, proj->o.z + (proj->aboveeye - proj->eyeheight) / 2));
         bool isinwater = isliquidmaterial(mat);
         if (isinwater)
         {
-            d->vel.z -= gravity * mapgravity / 16 * secs;
-            d->vel.mul(max(1.0f - secs / waterfric, 0.0f));
+            proj->vel.z -= gravity * mapgravity / 16 * secs;
+            proj->vel.mul(max(1.0f - secs / waterfric, 0.0f));
         }
-        else d->vel.z -= gravity * mapgravity * secs;
-        vec old(d->o);
+        else proj->vel.z -= gravity * mapgravity * secs;
+        vec old(proj->o);
+        bool hasimpactdetonation = proj->flags & ProjFlag_Impact;
         loopi(2)
         {
-            vec dir(d->vel);
+            vec dir(proj->vel);
             dir.mul(secs);
-            d->o.add(dir);
-            if (!collide(d, dir, 0, true, true))
+            proj->o.add(dir);
+            if (!collide(proj, dir, 0, true, true))
             {
                 if (collideinside)
                 {
-                    d->o = old;
-                    d->vel.mul(-elasticity);
+                    proj->o = old;
+                    proj->vel.mul(-elasticity);
+                    if (hasimpactdetonation)
+                    {
+                        return true;
+                    }
                 }
                 break;
             }
             else if (collideplayer)
             {
+                collidewithentity(proj, collideplayer);
                 break;
             }
-            d->o = old;
-            game::bounce(d, collidewall);
-            float c = collidewall.dot(d->vel),
-                k = 1.0f + (1.0f - elasticity) * c / d->vel.magnitude();
-            d->vel.mul(k);
-            d->vel.sub(vec(collidewall).mul(elasticity * 2.0f * c));
+            if (hasimpactdetonation)
+            {
+                // Detonate on impact without bouncing.
+                return true;
+            }
+            else
+            {
+                proj->o = old;
+                game::bounce(proj, collidewall);
+                float c = collidewall.dot(proj->vel);
+                float k = 1.0f + (1.0f - elasticity) * c / proj->vel.magnitude();
+                proj->vel.mul(k);
+                proj->vel.sub(vec(collidewall).mul(elasticity * 2.0f * c));
+            }            
         }
-        if (d->physstate != PHYS_BOUNCE)
+        if (proj->physstate != PHYS_BOUNCE)
         {
             // Make sure bouncers don't start inside geometry!
-            if (d->o == old) return !collideplayer;
-            d->physstate = PHYS_BOUNCE;
+            if (proj->o == old) return !collideplayer;
+            proj->physstate = PHYS_BOUNCE;
         }
         return collideplayer != NULL;
     }
 
-    bool isbouncing(physent* d, float elasticity, float waterfric, float gravity)
+    bool isbouncing(projectile* proj, float elasticity, float waterfric, float gravity)
     {
         if (physsteps <= 0)
         {
-            interpolateposition(d);
+            interpolateposition(proj);
             return false;
         }
 
-        d->o = d->newpos;
+        proj->o = proj->newpos;
         bool hitplayer = false;
         loopi(physsteps - 1)
         {
-            if (hasbounced(d, physframetime / 1000.0f, elasticity, waterfric, gravity))
+            if (hasbounced(proj, physframetime / 1000.0f, elasticity, waterfric, gravity))
             {
                 hitplayer = true;
             }
         }
-        d->deltapos = d->o;
-        if (hasbounced(d, physframetime / 1000.0f, elasticity, waterfric, gravity))
+        proj->deltapos = proj->o;
+        if (hasbounced(proj, physframetime / 1000.0f, elasticity, waterfric, gravity))
         {
             hitplayer = true;
         }
-        d->newpos = d->o;
-        d->deltapos.sub(d->newpos);
-        interpolateposition(d);
+        proj->newpos = proj->o;
+        proj->deltapos.sub(proj->newpos);
+        interpolateposition(proj);
         return !hitplayer;
     }
 

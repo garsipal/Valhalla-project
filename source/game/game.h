@@ -573,8 +573,8 @@ namespace physics
     extern void physicsframe();
     extern void updatephysstate(gameent* d);
 
-    extern bool hasbounced(physent* d, float secs, float elasticity, float waterfric, float gravity);
-    extern bool isbouncing(physent* d, float elasticity, float waterfric, float gravity, bool impact);
+    extern bool hasbounced(projectile* proj, float secs, float elasticity, float waterfric, float gravity);
+    extern bool isbouncing(projectile* proj, float elasticity, float waterfric, float gravity);
 
     extern int physsteps;
     extern int liquidtransition(physent* d, int material, bool isinwater);
@@ -711,6 +711,8 @@ namespace game
     extern void hit(int damage, dynent* d, gameent* at, const vec& vel, int atk, float info1, int info2 = 1, int flags = HIT_TORSO);
 
     // projectile.cpp
+    extern vector<projectile*> projectiles;
+
     extern void updateprojectiles(int time);
     extern void removeprojectiles(gameent* owner);
     extern void renderprojectiles();
