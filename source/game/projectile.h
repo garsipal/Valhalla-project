@@ -39,12 +39,12 @@ static const struct projectileinfo
     float radius;
 } projs[Projectile_Max] =
 {
-    { Projectile_Grenade,  ProjFlag_Weapon | ProjFlag_Bounce,                                                         "projectile/grenade",  S_BOUNCE_GRENADE, -1,            10, 0, 1.4f },
-    { Projectile_Grenade2, ProjFlag_Weapon | ProjFlag_Bounce | ProjFlag_Impact,                                       "projectile/grenade",  S_BOUNCE_GRENADE, -1,            10, 0, 1.4f },
-    { Projectile_Rocket,   ProjFlag_Weapon | ProjFlag_Linear | ProjFlag_Impact,                                       "projectile/rocket",   S_BOUNCE_ROCKET,  S_ROCKET_LOOP, 10, 0, 1.4f },
-    { Projectile_Rocket2,  ProjFlag_Weapon | ProjFlag_Bounce,                                                         "projectile/rocket",   -1,               -1,            10, 0, 2.0f },
-    { Projectile_Pulse,    ProjFlag_Weapon | ProjFlag_Linear | ProjFlag_Quench | ProjFlag_Impact | ProjFlag_Immortal, NULL,                  S_BOUNCE_ROCKET,  S_PULSE_LOOP,  10, 0, 1.0f },
-    { Projectile_Plasma,   ProjFlag_Weapon | ProjFlag_Linear | ProjFlag_Quench | ProjFlag_Impact | ProjFlag_Immortal, NULL,                  S_BOUNCE_ROCKET,  S_PISTOL_LOOP, 10, 0, 1.0f },
+    { Projectile_Grenade,  ProjFlag_Weapon | ProjFlag_Bounce,                                                         "projectile/grenade",  S_BOUNCE_GRENADE, -1,             0, 0, 1.4f },
+    { Projectile_Grenade2, ProjFlag_Weapon | ProjFlag_Bounce | ProjFlag_Impact,                                       "projectile/grenade",  S_BOUNCE_GRENADE, -1,             0, 0, 1.4f },
+    { Projectile_Rocket,   ProjFlag_Weapon | ProjFlag_Linear | ProjFlag_Impact,                                       "projectile/rocket",   -1,               S_ROCKET_LOOP,  0, 0, 1.4f },
+    { Projectile_Rocket2,  ProjFlag_Weapon | ProjFlag_Bounce,                                                         "projectile/rocket",   S_BOUNCE_ROCKET,  -1,             2, 0, 2.0f },
+    { Projectile_Pulse,    ProjFlag_Weapon | ProjFlag_Linear | ProjFlag_Quench | ProjFlag_Impact | ProjFlag_Immortal, NULL,                  S_BOUNCE_ROCKET,  S_PULSE_LOOP,   0, 0, 1.0f },
+    { Projectile_Plasma,   ProjFlag_Weapon | ProjFlag_Linear | ProjFlag_Quench | ProjFlag_Impact | ProjFlag_Immortal, NULL,                  S_BOUNCE_ROCKET,  S_PISTOL_LOOP,  0, 0, 1.0f },
     { Projectile_Gib,      ProjFlag_Junk | ProjFlag_Bounce,                                                           "projectile/gib",      -1,               -1,             2, 5, 1.5f },
     { Projectile_Debris,   ProjFlag_Junk | ProjFlag_Bounce,                                                           NULL,                  -1,               -1,             0, 0, 1.8f },
     { Projectile_Eject,    ProjFlag_Junk | ProjFlag_Bounce,                                                           "projectile/eject/01", S_BOUNCE_EJECT,   -1,             2, 0, 0.4f },
