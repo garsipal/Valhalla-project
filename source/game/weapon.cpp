@@ -918,7 +918,7 @@ namespace game
         {
             shoot(self, worldpos); // only shoot when connected to server
         }
-        updateprojectiles(curtime); // need to do this after the player shoots so bouncers don't end up inside player's BB next frame
+        updateprojectiles(curtime); // need to do this after the player shoots so projectiles don't end up inside player's BB next frame
         updaterecoil(self, curtime);
         gameent *following = followingplayer();
         if(!following) following = self;
