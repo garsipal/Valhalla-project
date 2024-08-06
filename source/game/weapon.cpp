@@ -772,7 +772,8 @@ namespace game
         }
         if (isvalidprojectile(projectile))
         {
-            if (d->inwater && projs[projectile].flags & ProjFlag_Quench)
+            bool isinwater = ((lookupmaterial(d->o)) & MATF_VOLUME) == MAT_WATER;
+            if (isinwater && projs[projectile].flags & ProjFlag_Quench)
             {
                 return false;
             }
