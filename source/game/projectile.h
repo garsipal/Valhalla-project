@@ -6,13 +6,13 @@ const int OFFSETMILLIS = 500;
 
 enum
 {
-    ProjFlag_Weapon   = 1 << 0, // Empty.
-    ProjFlag_Junk     = 1 << 1, // Projectiles that are not used by weapons.
-    ProjFlag_Bounce   = 1 << 2, // Projectile bounces off surfaces.
-    ProjFlag_Linear   = 1 << 3, // Projectile moves in a straight line.
-    ProjFlag_Impact   = 1 << 4, // Projectile detonates on collision.
-    ProjFlag_Quench   = 1 << 5, // Projectile is destroyed upon contact with water.
-    ProjFlag_Immortal = 1 << 6  // Projectile cannot be destroyed by players.
+    ProjFlag_Weapon   = 1 << 0, // Related to a weapon.
+    ProjFlag_Junk     = 1 << 1, // Lightweight projectiles for cosmetic effects.
+    ProjFlag_Bounce   = 1 << 2, // Bounces off surfaces.
+    ProjFlag_Linear   = 1 << 3, // Follows a linear trajectory.
+    ProjFlag_Impact   = 1 << 4, // Detonates on collision.
+    ProjFlag_Quench   = 1 << 5, // Destroyed upon contact with water.
+    ProjFlag_Immortal = 1 << 6  // Cannot be destroyed by players.
 };
 
 enum
@@ -48,9 +48,12 @@ static const struct projectileinfo
     { Projectile_Gib,      ProjFlag_Junk | ProjFlag_Bounce,                                                           "projectile/gib",      -1,               -1,             2, 5, 1.5f },
     { Projectile_Debris,   ProjFlag_Junk | ProjFlag_Bounce,                                                           NULL,                  -1,               -1,             0, 0, 1.8f },
     { Projectile_Eject,    ProjFlag_Junk | ProjFlag_Bounce,                                                           "projectile/eject/01", S_BOUNCE_EJECT,   -1,             2, 0, 0.4f },
-    { Projectile_Bullet,   ProjFlag_Junk | ProjFlag_Linear,                                                           NULL,                  -1,               -1,             0, 0, 0.4f }
+    { Projectile_Bullet,   ProjFlag_Weapon | ProjFlag_Junk | ProjFlag_Linear,                                         NULL,                  -1,               -1,             0, 0, 0.4f }
 };
-inline bool isweaponprojectile(int projectile) { return isvalidprojectile(projectile) && projs[projectile].flags & ProjFlag_Weapon; }
+inline bool isweaponprojectile(int projectile)
+{ 
+    return isvalidprojectile(projectile) && projs[projectile].flags & ProjFlag_Weapon && !(projs[projectile].flags & ProjFlag_Junk);
+}
 
 struct projectile : physent
 {
@@ -70,7 +73,7 @@ struct projectile : physent
 
     projectile() : isdestroyed(false), isdirect(false), roll(0), variant(0), bounces(0), lastbounce(0), bouncesound(-1), loopchan(-1), loopsound(-1)
     {
-        type = ENT_BOUNCE;
+        type = ENT_PROJECTILE;
         collidetype = COLLIDE_ELLIPSE;
     }
     ~projectile()

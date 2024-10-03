@@ -239,7 +239,7 @@ struct ragdolldata
         {
             vertent()
             {
-                type = ENT_BOUNCE;
+                type = ENT_PROJECTILE;
                 radius = xradius = yradius = eyeheight = aboveeye = 1;
             }
         } v;

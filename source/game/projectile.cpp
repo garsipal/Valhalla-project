@@ -13,7 +13,7 @@
  * - Interaction with physics, such as bouncing or sticking to surfaces.
  * - Specific effects on impact or over time (e.g. explosions/particle effects).
  * - Health and countdown values that determine durability and lifespan.
- * - Potential for players to pick them uproj.
+ * - Potential for players to pick them up.
  *
  * Projectiles are implemented using a specialized structure.
  * This is based on the "physent" entity, from which all dynamic entities are derived.
@@ -110,7 +110,7 @@ namespace game
 
     void bounce(physent* d, const vec& surface)
     {
-        if (d->type != ENT_BOUNCE) return;
+        if (d->type != ENT_PROJECTILE) return;
 
         projectile* proj = (projectile*)d;
         proj->bounces++;
@@ -160,14 +160,17 @@ namespace game
     {
         if (betweenrounds || o->state != CS_ALIVE) return false;
         if (!isintersecting(o, proj.o, v, attacks[proj.atk].margin)) return false;
-        vec dir;
-        projectiledistance(o, dir, v, proj.vel);
-        gameent* f = (gameent*)o;
-        int cdamage = calcdamage(damage, f, proj.owner, proj.atk);
-        int flags = HIT_TORSO;
-        if (proj.isdirect) flags |= HIT_DIRECT;
-        hit(cdamage, o, proj.owner, dir, proj.atk, flags);
-        damageeffect(cdamage, o, o->o, proj.atk, getbloodcolor(o));
+        if (isweaponprojectile(proj.projtype))
+        {
+            vec dir;
+            projectiledistance(o, dir, v, proj.vel);
+            gameent* f = (gameent*)o;
+            int cdamage = calcdamage(damage, f, proj.owner, proj.atk);
+            int flags = HIT_TORSO;
+            if (proj.isdirect) flags |= HIT_DIRECT;
+            hit(cdamage, o, proj.owner, dir, proj.atk, flags);
+            damageeffect(cdamage, o, o->o, proj.atk, getbloodcolor(o));
+        }
         return true;
     }
 
@@ -181,58 +184,58 @@ namespace game
         bool iswater = (lookupmaterial(v) & MATF_VOLUME) == MAT_WATER;
         switch (atk)
         {
-        case ATK_ROCKET1:
-        case ATK_ROCKET2:
-        {
-            explosioncolor = 0xC8E66B;
-            dynlight = vec(0.5f, 0.375f, 0.25f);
-            if (iswater) break;
-            explosiontype = PART_EXPLOSION3;
-            particle_splash(PART_EXPLODE, 30, 180, v, 0xF3A612, 6.0f + rndscale(9.0f), 180, 50);
-            particle_splash(PART_SPARK2, 100, 250, v, 0xFFC864, 0.10f + rndscale(0.50f), 600, 1);
-            particle_splash(PART_SMOKE, 50, 280, v, 0x444444, 10.0f, 250, 200);
-            break;
-        }
-        case ATK_PULSE1:
-        {
-            explosioncolor = 0xEE88EE;
-            if (iswater)
+            case ATK_ROCKET1:
+            case ATK_ROCKET2:
             {
-                particle_flare(v, v, 280, PART_ELECTRICITY, explosioncolor, 12.0f);
-                return;
+                explosioncolor = 0xC8E66B;
+                dynlight = vec(0.5f, 0.375f, 0.25f);
+                if (iswater) break;
+                explosiontype = PART_EXPLOSION3;
+                particle_splash(PART_EXPLODE, 30, 180, v, 0xF3A612, 6.0f + rndscale(9.0f), 180, 50);
+                particle_splash(PART_SPARK2, 100, 250, v, 0xFFC864, 0.10f + rndscale(0.50f), 600, 1);
+                particle_splash(PART_SMOKE, 50, 280, v, 0x444444, 10.0f, 250, 200);
+                break;
             }
-            dynlight = vec(1.0f, 0.50f, 1.0f);
-            explosiontype = PART_EXPLOSION2;
-            particle_splash(PART_SPARK2, 5 + rnd(20), 200, v, explosioncolor, 0.08f + rndscale(0.35f), 400, 2);
-            particle_splash(PART_EXPLODE, 30, 80, v, explosioncolor, 1.5f + rndscale(2.8f), 120, 40);
-            particle_splash(PART_SMOKE, 60, 180, v, 0x222222, 2.5f + rndscale(3.8f), 120, 60);
-            break;
-        }
-        case ATK_GRENADE1:
-        case ATK_GRENADE2:
-        {
-            explosioncolor = 0x74BCF9;
-            dynlight = vec(0, 0.25f, 1.0f);
-            if (iswater) break;
-            explosiontype = PART_EXPLOSION2;
-            particle_flare(v, v, 280, PART_ELECTRICITY, explosioncolor, 30.0f);
-            break;
-        }
-        case ATK_PISTOL2:
-        case ATK_PISTOL_COMBO:
-        {
-            explosioncolor = 0x00FFFF;
-            if (atk == ATK_PISTOL2 && iswater)
+            case ATK_PULSE1:
             {
-                particle_flare(v, v, 280, PART_ELECTRICITY, explosioncolor, 12.0f);
-                return;
+                explosioncolor = 0xEE88EE;
+                if (iswater)
+                {
+                    particle_flare(v, v, 280, PART_ELECTRICITY, explosioncolor, 12.0f);
+                    return;
+                }
+                dynlight = vec(1.0f, 0.50f, 1.0f);
+                explosiontype = PART_EXPLOSION2;
+                particle_splash(PART_SPARK2, 5 + rnd(20), 200, v, explosioncolor, 0.08f + rndscale(0.35f), 400, 2);
+                particle_splash(PART_EXPLODE, 30, 80, v, explosioncolor, 1.5f + rndscale(2.8f), 120, 40);
+                particle_splash(PART_SMOKE, 60, 180, v, 0x222222, 2.5f + rndscale(3.8f), 120, 60);
+                break;
             }
-            dynlight = vec(0.25f, 1.0f, 1.0f);
-            particle_fireball(v, 1.0f, PART_EXPLOSION2, atk == ATK_PISTOL2 ? 200 : 500, 0x00FFFF, attacks[atk].exprad);
-            particle_splash(PART_SPARK2, 50, 180, v, 0x00FFFF, 0.18f, 380);
-            break;
-        }
-        default: break;
+            case ATK_GRENADE1:
+            case ATK_GRENADE2:
+            {
+                explosioncolor = 0x74BCF9;
+                dynlight = vec(0, 0.25f, 1.0f);
+                if (iswater) break;
+                explosiontype = PART_EXPLOSION2;
+                particle_flare(v, v, 280, PART_ELECTRICITY, explosioncolor, 30.0f);
+                break;
+            }
+            case ATK_PISTOL2:
+            case ATK_PISTOL_COMBO:
+            {
+                explosioncolor = 0x00FFFF;
+                if (atk == ATK_PISTOL2 && iswater)
+                {
+                    particle_flare(v, v, 280, PART_ELECTRICITY, explosioncolor, 12.0f);
+                    return;
+                }
+                dynlight = vec(0.25f, 1.0f, 1.0f);
+                particle_fireball(v, 1.0f, PART_EXPLOSION2, atk == ATK_PISTOL2 ? 200 : 500, 0x00FFFF, attacks[atk].exprad);
+                particle_splash(PART_SPARK2, 50, 180, v, 0x00FFFF, 0.18f, 380);
+                break;
+            }
+            default: break;
         }
         particle_fireball(v, 1.15f * attacks[atk].exprad, explosiontype, atk == ATK_GRENADE1 || atk == ATK_GRENADE2 ? 200 : 400, explosioncolor, 0.10f);
         adddynlight(v, 2 * attacks[atk].exprad, dynlight, 350, 40, 0, attacks[atk].exprad / 2, vec(0.5f, 1.5f, 2.0f));
@@ -435,13 +438,9 @@ namespace game
 
             case Projectile_Bullet:
             {
-                tailc = 0xFFC864; tails = 1.3f;
+                tailc = 0xFFC864; tails = 1.0f;
                 if (attacks[proj->atk].gun == GUN_PISTOL) tailc = 0x00FFFF;
-                else if (attacks[proj->atk].gun == GUN_RAIL)
-                {
-                    tailc = 0x77DD77;
-                    tails = 2.0f;
-                }
+                else if (attacks[proj->atk].gun == GUN_RAIL) tailc = 0x77DD77;
                 break;
             }
         }
@@ -449,13 +448,13 @@ namespace game
         {
             float len = min(80.0f, vec(proj->offset).add(proj->from).dist(pos));
             vec dir = vec(proj->dv).normalize(), tail = vec(dir).mul(-len).add(pos), head = vec(dir).mul(2.4f).add(pos);
-            particle_flare(tail, head, 1, proj->projtype == Projectile_Bullet ? PART_TRAIL : PART_TRAIL_PROJECTILE, tailc, tails);
+            particle_flare(tail, head, 1, PART_TRAIL_PROJECTILE, tailc, tails);
         }
     }
 
     void checklifetime(projectile& proj, int time)
     {
-        if (proj.flags & ProjFlag_Weapon)
+        if (isweaponprojectile(proj.projtype))
         {
             if ((proj.lifetime -= time) < 0)
             {
@@ -532,7 +531,7 @@ namespace game
                         proj.isdestroyed = true;
                     }
                 }
-                if (proj.flags & ProjFlag_Weapon)
+                if (isweaponprojectile(proj.projtype))
                 {
                     if (proj.flags & ProjFlag_Bounce)
                     {

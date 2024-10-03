@@ -1163,7 +1163,7 @@ bool droptofloor(vec &o, float radius, float height)
     {
         dropent()
         {
-            type = ENT_BOUNCE;
+            type = ENT_PROJECTILE;
             vel = vec(0, 0, -1);
         }
     } d;

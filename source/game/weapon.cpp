@@ -322,7 +322,8 @@ namespace game
     void calcpush(int damage, dynent *d, gameent *at, vec &from, vec &to, int atk, int rays, int flags)
     {
         if(betweenrounds) return;
-        hit(damage, d, at, vec(to).sub(from).safenormalize(), atk, from.dist(to), rays, flags);
+        vec velocity = vec(to).sub(from).safenormalize();
+        hit(damage, d, at, velocity, atk, from.dist(to), rays, flags);
     }
 
     void playimpactsound(int sound, vec to)
@@ -501,7 +502,7 @@ namespace game
                 }
                 loopi(attacks[atk].rays)
                 {
-                    particle_flare(hudgunorigin(gun, from, rays[i], d), rays[i], 80, PART_TRAIL, 0xFFC864, 0.95f);
+                    particle_flare(hudgunorigin(gun, from, rays[i], d), rays[i], 80, PART_TRAIL, 0xFFC864, 1.2f);
                 }
                 break;
             }
@@ -512,10 +513,10 @@ namespace game
                 if(d->muzzle.x >= 0 && muzzleflash)
                 {
                     particle_flare(d->muzzle, d->muzzle, 80, PART_MUZZLE_FLASH3, 0xEFE898, 1.5f, d);
-                    adddynlight(hudgunorigin(gun, d->o, to, d), 60, vec(0.5f, 0.375f, 0.25f), atk==ATK_SMG1 ? 70 : 110, 75, DL_FLASH, 0, vec(0, 0, 0), d);
+                    adddynlight(hudgunorigin(gun, d->o, to, d), 60, vec(0.5f, 0.375f, 0.25f), atk == ATK_SMG1 ? 70 : 110, 75, DL_FLASH, 0, vec(0, 0, 0), d);
                 }
                 if(shouldeject) spawnbouncer(d->eject, d, Projectile_Eject);
-                if(atk == ATK_SMG2) particle_flare(hudgunorigin(attacks[atk].gun, from, to, d), to, 80, PART_TRAIL, 0xFFC864, 0.95f);
+                if(atk == ATK_SMG2) particle_flare(hudgunorigin(attacks[atk].gun, from, to, d), to, 80, PART_TRAIL, 0xFFC864, 1.2f);
                 if(!local) impacteffects(atk, d, from, to, hit);
                 break;
             }
@@ -696,7 +697,6 @@ namespace game
     void hitscan(vec &from, vec &to, gameent *d, int atk)
     {
         int maxrays = attacks[atk].rays;
-        //if(scanprojectiles(from, to, d, atk)) return;
         dynent *o;
         float dist;
         int margin = attacks[atk].margin, damage = attacks[atk].damage, flags = HIT_TORSO;
@@ -932,4 +932,3 @@ namespace game
     }
 
 };
-
