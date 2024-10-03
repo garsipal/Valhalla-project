@@ -651,7 +651,7 @@ namespace game
     extern void respawn();
     extern void deathstate(gameent *d, bool restore = false);
     extern void damagehud(int damage, gameent *d, gameent *actor);
-    extern void damaged(int damage, vec &p, gameent *d, gameent *actor, int atk, int flags = 0, bool local = true);
+    extern void damageentity(int damage, const vec hit, gameent *d, gameent *actor, int atk, int flags = 0, bool local = true);
     extern void writeobituary(gameent *d, gameent *actor, int atk, int flags = 0);
     extern void checkannouncements(gameent *actor, int flags);
     extern void kill(gameent *d, gameent *actor, int atk, int flags = KILL_NONE);
@@ -695,7 +695,7 @@ namespace game
     extern int getweapon(const char *name);
     extern void shoot(gameent *d, const vec &targ);
     extern void shoteffects(int atk, const vec &from, const vec &to, gameent *d, bool local, int id, int prevaction, bool hit = false);
-    extern void damageeffect(int damage, dynent *d, vec p, int atk, int color, bool headshot = false);
+    extern void damageeffect(int damage, dynent *d, vec hit, int atk, int color, bool headshot = false);
     extern void gibeffect(int damage, const vec &vel, gameent *d, bool force = false);
     extern int calcdamage(int damage, gameent *target, gameent *actor, int atk, int flags = HIT_TORSO);
     extern float intersectdist;
@@ -708,7 +708,7 @@ namespace game
     extern void weaponswitch(gameent *d);
     extern void removeprojectiles(gameent* owner = NULL);
     extern void avoidprojectiles(ai::avoidset &obstacles, float radius);
-    extern void hit(int damage, dynent* d, gameent* at, const vec& vel, int atk, float info1, int info2 = 1, int flags = HIT_TORSO);
+    extern void registerhit(int damage, dynent* d, gameent* at, const vec hit, const vec& velocity, int atk, float dist, int rays = 1, int flags = HIT_TORSO);
 
     // projectile.cpp
     extern vector<projectile*> projectiles;

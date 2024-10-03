@@ -1895,7 +1895,7 @@ namespace game
                 if(!target || !actor) break;
                 target->health = health;
                 target->shield = shield;
-                damaged(damage, to.iszero() ? target->o : to, target, actor, atk, flags, false);
+                damageentity(damage, to.iszero() ? target->o : to, target, actor, atk, flags, false);
                 break;
             }
 

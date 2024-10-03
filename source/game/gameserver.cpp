@@ -60,7 +60,7 @@ namespace server
 
     struct hitinfo
     {
-        int target, lifesequence, rays, flags;
+        int target, lifesequence, rays, flags, proj;
         float dist;
         vec dir;
     };

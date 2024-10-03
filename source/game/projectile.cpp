@@ -166,10 +166,8 @@ namespace game
             projectiledistance(o, dir, v, proj.vel);
             gameent* f = (gameent*)o;
             int cdamage = calcdamage(damage, f, proj.owner, proj.atk);
-            int flags = HIT_TORSO;
-            if (proj.isdirect) flags |= HIT_DIRECT;
-            hit(cdamage, o, proj.owner, dir, proj.atk, flags);
-            damageeffect(cdamage, o, o->o, proj.atk, getbloodcolor(o));
+            int flags = HIT_TORSO | HIT_DIRECT;
+            registerhit(cdamage, o, proj.owner, o->o, dir, proj.atk, 0, 1, flags);
         }
         return true;
     }
@@ -267,8 +265,7 @@ namespace game
             float radiusdamage = damage * (1 - dist / EXP_DISTSCALE / attacks[atk].exprad), damage = calcdamage(radiusdamage, (gameent*)o, at, atk);
             int flags = HIT_TORSO;
             if (isdirect) flags |= HIT_DIRECT;
-            hit(damage, o, at, dir, atk, dist, 1, flags);
-            damageeffect(damage, o, o->o, atk, getbloodcolor(o));
+            registerhit(damage, o, at, o->o, dir, atk, dist, 1, flags);
         }
     }
 

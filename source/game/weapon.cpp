@@ -167,16 +167,16 @@ namespace game
     VARP(goreeffect, 0, 0, 2);
     VARP(playheadshotsound, 0, 1, 1);
 
-    void damageeffect(int damage, dynent *d, vec p, int atk, int color, bool headshot)
+    void damageeffect(int damage, dynent *d, vec hit, int atk, int color, bool headshot)
     {
         gameent *f = (gameent *)d, *hud = followingplayer(self);
         if(f == hud)
         {
-            p.z += 0.6f*(d->eyeheight + d->aboveeye) - d->eyeheight;
+            hit.z += 0.6f*(d->eyeheight + d->aboveeye) - d->eyeheight;
         }
         if(f->haspowerup(PU_INVULNERABILITY) || f->shield)
         {
-            particle_splash(PART_SPARK2, 100, 150, p, f->haspowerup(PU_INVULNERABILITY) ? getplayercolor(f, f->team) : 0xFFFF66, 0.50f);
+            particle_splash(PART_SPARK2, 100, 150, hit, f->haspowerup(PU_INVULNERABILITY) ? getplayercolor(f, f->team) : 0xFFFF66, 0.50f);
             if(f->haspowerup(PU_INVULNERABILITY))
             {
                 playsound(S_ACTION_INVULNERABILITY, f);
@@ -185,13 +185,13 @@ namespace game
         }
         if(blood && color != -1)
         {
-            particle_splash(PART_BLOOD, damage/10, 1000, p, color, 2.60f);
-            particle_splash(PART_BLOOD2, 200, 250, p, color, 0.50f);
+            particle_splash(PART_BLOOD, damage/10, 1000, hit, color, 2.60f);
+            particle_splash(PART_BLOOD2, 200, 250, hit, color, 0.50f);
         }
         else
         {
-            particle_flare(p, p, 100, PART_MUZZLE_FLASH3, 0xFFFF66, 3.5f);
-            particle_splash(PART_SPARK2, damage/5, 500, p, 0xFFFF66, 0.5f, 300);
+            particle_flare(hit, hit, 100, PART_MUZZLE_FLASH3, 0xFFFF66, 3.5f);
+            particle_splash(PART_SPARK2, damage/5, 500, hit, 0xFFFF66, 0.5f, 300);
         }
         if(f->health > 0 && lastmillis-f->lastyelp > 600)
         {
@@ -248,52 +248,6 @@ namespace game
 
     VARP(monsterdeadpush, 1, 5, 20);
 
-    void hit(int damage, dynent *d, gameent *at, const vec &vel, int atk, float info1, int info2, int flags)
-    {
-        gameent *f = (gameent *)d;
-        if(f->type == ENT_PLAYER && !isinvulnerable(f, at)) f->lastpain = lastmillis;
-        if(at->type==ENT_PLAYER && f!=at && !isally(f, at))
-        {
-            at->totaldamage += damage;
-        }
-        if(at == self && d != at)
-        {
-            extern int hitsound;
-            if(hitsound && at->lasthit != lastmillis) {
-                playsound(isally(f, at) ? S_HIT_ALLY : S_HIT);
-            }
-            at->lasthit = lastmillis;
-        }
-        if(f->type != ENT_AI && (!m_mp(gamemode) || f==at))
-        {
-            f->hitpush(damage, vel, at, atk);
-        }
-        if(f->type == ENT_AI)
-        {
-            hitmonster(damage, (monster *)f, at, atk, flags);
-            f->hitpush(damage * (f->health<=0 ? monsterdeadpush : 1), vel, at, atk);
-        }
-        else if(!m_mp(gamemode))
-        {
-            damaged(damage, f->o, f, at, atk, flags);
-        }
-        else
-        {
-            hitmsg &h = hits.add();
-            h.target = f->clientnum;
-            h.lifesequence = f->lifesequence;
-            h.info1 = int(info1*DMF);
-            h.info2 = info2;
-            h.flags = flags;
-            h.dir = f==at ? ivec(0, 0, 0) : ivec(vec(vel).mul(DNF));
-
-            if (at == self && f == at)
-            {
-                damagehud(damage, f, at);
-            }
-        }
-    }
-
     int calcdamage(int damage, gameent *target, gameent *actor, int atk, int flags)
     {
         if(target != actor && isinvulnerable(target, actor))
@@ -319,11 +273,66 @@ namespace game
         return damage;
     }
 
-    void calcpush(int damage, dynent *d, gameent *at, vec &from, vec &to, int atk, int rays, int flags)
+    void registerhit(int damage, dynent *d, gameent *at, const vec hit, const vec& velocity, int atk, float dist, int rays, int flags)
     {
         if(betweenrounds) return;
-        vec velocity = vec(to).sub(from).safenormalize();
-        hit(damage, d, at, velocity, atk, from.dist(to), rays, flags);
+
+        gameent* f = (gameent*)d;
+        projectile* proj = NULL;
+        if (f->type == ENT_PROJECTILE)
+        {
+            proj = (projectile*)f;
+        }
+        if (f->type == ENT_PLAYER && !isinvulnerable(f, at)) f->lastpain = lastmillis;
+        if (at->type == ENT_PLAYER && f != at && !isally(f, at))
+        {
+            at->totaldamage += damage;
+        }
+        if (at == self && d != at)
+        {
+            extern int hitsound;
+            if (hitsound && at->lasthit != lastmillis)
+            {
+                playsound(isally(f, at) ? S_HIT_ALLY : S_HIT);
+            }
+            at->lasthit = lastmillis;
+        }
+        if (f->type != ENT_AI && (!m_mp(gamemode) || f == at))
+        {
+            f->hitpush(damage, velocity, at, atk);
+        }
+        if (f->type == ENT_AI)
+        {
+            hitmonster(damage, (monster*)f, at, atk, flags);
+            f->hitpush(damage * (f->health <= 0 ? monsterdeadpush : 1), velocity, at, atk);
+        }
+        else if (!m_mp(gamemode))
+        {
+            damageentity(damage, hit, f, at, atk, flags);
+        }
+        else
+        {
+            hitmsg& h = hits.add();
+            h.target = proj ? proj->owner->clientnum : f->clientnum;
+            h.lifesequence = f->lifesequence;
+            h.dist = int(dist * DMF);
+            h.rays = rays;
+            h.flags = flags;
+            h.dir = f == at ? ivec(0, 0, 0) : ivec(vec(velocity).mul(DNF));
+            h.projectile = proj ? proj->id : 0;
+
+            if (at == self && f == at)
+            {
+                damagehud(damage, f, at);
+            }
+
+            damageeffect(damage, f, hit, atk, getbloodcolor(f), flags & HIT_HEAD);
+
+            if (at == followingplayer(self) && attacks[atk].action == ACT_MELEE)
+            {
+                addroll(at, damage / 2.0f);
+            }
+        }
     }
 
     void playimpactsound(int sound, vec to)
@@ -699,7 +708,7 @@ namespace game
         int maxrays = attacks[atk].rays;
         dynent *o;
         float dist;
-        int margin = attacks[atk].margin, damage = attacks[atk].damage, flags = HIT_TORSO;
+        int margin = attacks[atk].margin, flags = HIT_TORSO;
         bool hitlegs = false, hithead = false;
         if(attacks[atk].rays > 1)
         {
@@ -731,9 +740,8 @@ namespace game
                     if(hithead) flags |= HIT_HEAD;
                     if(hitlegs) flags |= HIT_LEGS;
                 }
-                damage = calcdamage(damage, (gameent *)o, d, atk, flags);
-                calcpush(numhits*damage, o, d, from, to, atk, numhits, flags);
-                damageeffect(damage, o, rays[i], atk, getbloodcolor(o), hithead);
+                int damage = calcdamage(attacks[atk].damage, (gameent*) o, d, atk, flags);
+                registerhit(numhits * damage, o, d, rays[i], vec(to).sub(from).safenormalize(), atk, from.dist(to), numhits, flags);
             }
         }
         else
@@ -749,13 +757,8 @@ namespace game
                     if(hithead) flags = HIT_HEAD;
                     else if(hitlegs) flags = HIT_LEGS;
                 }
-                damage = calcdamage(damage, (gameent *)o, d, atk, flags);
-                calcpush(damage, o, d, from, to, atk, 1, flags);
-                damageeffect(damage, o, to, atk, getbloodcolor(o), hithead);
-                if(d == followingplayer(self) && attacks[atk].action == ACT_MELEE)
-                {
-                    addroll(d, damage / 2.0f);
-                }
+                int damage = calcdamage(attacks[atk].damage, (gameent*) o, d, atk, flags);
+                registerhit(damage, o, d, to, vec(to).sub(from).safenormalize(), atk, from.dist(to), 1, flags);
             }
             else
             {

@@ -477,12 +477,13 @@ namespace game
 
     VARP(hitsound, 0, 0, 1);
 
-    void damaged(int damage, vec &p, gameent *d, gameent *actor, int atk, int flags, bool local)
+    void damageentity(int damage, const vec hit, gameent *d, gameent *actor, int atk, int flags, bool local)
     {
-        if((d->state!=CS_ALIVE && d->state != CS_LAGGED && d->state != CS_SPAWNING) || intermission)
+        if(intermission || (d->state != CS_ALIVE && d->state != CS_LAGGED && d->state != CS_SPAWNING))
         {
             return;
         }
+
         if(local)
         {
             damage = d->dodamage(damage);
@@ -490,7 +491,7 @@ namespace game
         else if(actor == self && !(flags & HIT_MATERIAL)) return;
         else if(!isinvulnerable(d, actor)) d->lastpain = lastmillis;
 
-        damageeffect(damage, d, p, atk, getbloodcolor(d), flags & HIT_HEAD);
+        damageeffect(damage, d, hit, atk, getbloodcolor(d), flags & HIT_HEAD);
 
         if(isinvulnerable(d, actor)) return;
 
@@ -509,7 +510,7 @@ namespace game
         }
 
         ai::damaged(d, actor);
-        if(local && (d->health <= 0 || atk == ATK_INSTA || (m_insta(mutators) && actor->type == ENT_AI)))
+        if(local && d->health <= 0)
         {
             kill(d, actor, atk, flags);
         }
@@ -957,15 +958,17 @@ namespace game
 
     int numdynents()
     {
-        return players.length() + monsters.length();
+        return players.length() + monsters.length() + projectiles.length();
     }
 
     dynent *iterdynents(int i)
     {
-        if(i<players.length()) return players[i];
+        if (i < players.length()) return players[i];
         i -= players.length();
-        if(i<monsters.length()) return (dynent *)monsters[i];
+        if (i < monsters.length()) return (dynent *)monsters[i];
         i -= monsters.length();
+        if (i < projectiles.length()) return (dynent*)projectiles[i];
+        i -= projectiles.length();
         return NULL;
     }
 
@@ -1022,7 +1025,7 @@ namespace game
         {
             if(d->state != CS_ALIVE) return;
             if((d->lasthurt && lastmillis - d->lasthurt < DELAY_ENVDAM) || d->haspowerup(PU_INVULNERABILITY)) return;
-            damaged(DAM_ENV, d->o, d, d, -1, HIT_MATERIAL, true);
+            damageentity(DAM_ENV, d->o, d, d, -1, HIT_MATERIAL, true);
             d->lasthurt = lastmillis;
         }
     }

@@ -1,7 +1,7 @@
 // hit information to send
 struct hitmsg
 {
-    int target, lifesequence, info1, info2, flags;
+    int target, lifesequence, dist, rays, flags, projectile;
     ivec dir;
 };
 

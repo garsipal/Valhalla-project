@@ -10,9 +10,9 @@ enum
     ProjFlag_Junk     = 1 << 1, // Lightweight projectiles for cosmetic effects.
     ProjFlag_Bounce   = 1 << 2, // Bounces off surfaces.
     ProjFlag_Linear   = 1 << 3, // Follows a linear trajectory.
-    ProjFlag_Impact   = 1 << 4, // Detonates on collision.
+    ProjFlag_Impact   = 1 << 4, // Detonates on collision with geometry or entities.
     ProjFlag_Quench   = 1 << 5, // Destroyed upon contact with water.
-    ProjFlag_Immortal = 1 << 6  // Cannot be destroyed by players.
+    ProjFlag_Hittable = 1 << 6  // Can be hit and destroyed by other weapons.
 };
 
 enum
@@ -39,16 +39,16 @@ static const struct projectileinfo
     float radius;
 } projs[Projectile_Max] =
 {
-    { Projectile_Grenade,  ProjFlag_Weapon | ProjFlag_Bounce,                                                         "projectile/grenade",  S_BOUNCE_GRENADE, -1,             0, 0, 1.4f },
-    { Projectile_Grenade2, ProjFlag_Weapon | ProjFlag_Bounce | ProjFlag_Impact,                                       "projectile/grenade",  S_BOUNCE_GRENADE, -1,             0, 0, 1.4f },
-    { Projectile_Rocket,   ProjFlag_Weapon | ProjFlag_Linear | ProjFlag_Impact,                                       "projectile/rocket",   -1,               S_ROCKET_LOOP,  0, 0, 1.4f },
-    { Projectile_Rocket2,  ProjFlag_Weapon | ProjFlag_Bounce,                                                         "projectile/rocket",   S_BOUNCE_ROCKET,  -1,             2, 0, 2.0f },
-    { Projectile_Pulse,    ProjFlag_Weapon | ProjFlag_Linear | ProjFlag_Quench | ProjFlag_Impact | ProjFlag_Immortal, NULL,                  S_BOUNCE_ROCKET,  S_PULSE_LOOP,   0, 0, 1.0f },
-    { Projectile_Plasma,   ProjFlag_Weapon | ProjFlag_Linear | ProjFlag_Quench | ProjFlag_Impact | ProjFlag_Immortal, NULL,                  S_BOUNCE_ROCKET,  S_PISTOL_LOOP,  0, 0, 1.0f },
-    { Projectile_Gib,      ProjFlag_Junk | ProjFlag_Bounce,                                                           "projectile/gib",      -1,               -1,             2, 5, 1.5f },
-    { Projectile_Debris,   ProjFlag_Junk | ProjFlag_Bounce,                                                           NULL,                  -1,               -1,             0, 0, 1.8f },
-    { Projectile_Eject,    ProjFlag_Junk | ProjFlag_Bounce,                                                           "projectile/eject/01", S_BOUNCE_EJECT,   -1,             2, 0, 0.4f },
-    { Projectile_Bullet,   ProjFlag_Weapon | ProjFlag_Junk | ProjFlag_Linear,                                         NULL,                  -1,               -1,             0, 0, 0.4f }
+    { Projectile_Grenade,  ProjFlag_Weapon | ProjFlag_Bounce | ProjFlag_Hittable,                   "projectile/grenade",  S_BOUNCE_GRENADE, -1,             0, 0, 1.4f },
+    { Projectile_Grenade2, ProjFlag_Weapon | ProjFlag_Bounce | ProjFlag_Impact | ProjFlag_Hittable, "projectile/grenade",  S_BOUNCE_GRENADE, -1,             0, 0, 1.4f },
+    { Projectile_Rocket,   ProjFlag_Weapon | ProjFlag_Linear | ProjFlag_Impact | ProjFlag_Hittable, "projectile/rocket",   -1,               S_ROCKET_LOOP,  0, 0, 1.4f },
+    { Projectile_Rocket2,  ProjFlag_Weapon | ProjFlag_Bounce | ProjFlag_Hittable,                   "projectile/rocket",   S_BOUNCE_ROCKET,  -1,             2, 0, 2.0f },
+    { Projectile_Pulse,    ProjFlag_Weapon | ProjFlag_Linear | ProjFlag_Quench | ProjFlag_Impact,   NULL,                  S_BOUNCE_ROCKET,  S_PULSE_LOOP,   0, 0, 1.0f },
+    { Projectile_Plasma,   ProjFlag_Weapon | ProjFlag_Linear | ProjFlag_Quench | ProjFlag_Impact,   NULL,                  S_BOUNCE_ROCKET,  S_PISTOL_LOOP,  0, 0, 1.0f },
+    { Projectile_Gib,      ProjFlag_Junk | ProjFlag_Bounce,                                         "projectile/gib",      -1,               -1,             2, 5, 1.5f },
+    { Projectile_Debris,   ProjFlag_Junk | ProjFlag_Bounce,                                         NULL,                  -1,               -1,             0, 0, 1.8f },
+    { Projectile_Eject,    ProjFlag_Junk | ProjFlag_Bounce,                                         "projectile/eject/01", S_BOUNCE_EJECT,   -1,             2, 0, 0.4f },
+    { Projectile_Bullet,   ProjFlag_Weapon | ProjFlag_Junk | ProjFlag_Linear,                       NULL,                  -1,               -1,             0, 0, 0.4f }
 };
 inline bool isweaponprojectile(int projectile)
 { 
