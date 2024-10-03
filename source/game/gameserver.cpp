@@ -2987,7 +2987,7 @@ namespace server
         sendf(-1, 1, "ri3x", N_SHOTEVENT, ci->clientnum, atk, ci->ownernum);
         gs.shotdamage += attacks[atk].damage*attacks[atk].rays;
         bool hit = false;
-        if(isweaponprojectile(attacks[atk].projectile)) // projectile speed with no elasticity or gravity means we have a regular projectile (rocket)
+        if(isweaponprojectile(attacks[atk].projectile))
         {
             gs.projectiles.add(id);
         }
