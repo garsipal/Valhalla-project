@@ -128,16 +128,26 @@ namespace game
         proj->isdirect = true;
     }
 
-    float projectiledistance(dynent* o, vec& dir, const vec& v, const vec& vel)
+    float projectiledistance(dynent* o, vec& dir, const vec& v, const vec& vel, int flags)
     {
         vec middle = o->o;
         middle.z += (o->aboveeye - o->eyeheight) / 2;
-        dir = vec(middle).sub(v).add(vec(vel).mul(5)).safenormalize();
 
-        float low = min(o->o.z - o->eyeheight + o->radius, middle.z),
-            high = max(o->o.z + o->aboveeye - o->radius, middle.z);
-        vec closest(o->o.x, o->o.y, clamp(v.z, low, high));
-        return max(closest.dist(v) - o->radius, 0.0f);
+        if (flags & ProjFlag_Linear)
+        {
+            dir = vec(middle).sub(v).add(vec(vel).mul(5)).safenormalize();
+            float low = min(o->o.z - o->eyeheight + o->radius, middle.z);
+            float high = max(o->o.z + o->aboveeye - o->radius, middle.z);
+            vec closest(o->o.x, o->o.y, clamp(v.z, low, high));
+
+            return max(closest.dist(v) - o->radius, 0.0f);
+        }
+
+        float distance = middle.dist(v, dir);
+        dir.div(distance);
+        if (distance < 0) distance = 0;
+
+        return distance;   
     }
 
     void stain(vec dir, const vec& pos, int atk)
@@ -163,7 +173,7 @@ namespace game
         if (isweaponprojectile(proj.projtype))
         {
             vec dir;
-            projectiledistance(o, dir, v, proj.vel);
+            projectiledistance(o, dir, v, proj.vel, proj.flags);
             gameent* f = (gameent*)o;
             int cdamage = calcdamage(damage, f, proj.owner, proj.atk);
             int flags = HIT_TORSO | HIT_DIRECT;
@@ -255,17 +265,17 @@ namespace game
         }
     }
 
-    void applyradialeffect(dynent* o, const vec& v, const vec& vel, int damage, gameent* at, int atk, bool isdirect)
+    void applyradialeffect(dynent* o, const vec& v, const vec& vel, int damage, gameent* at, int atk, bool isdirect, int flags)
     {
         if (o->state != CS_ALIVE) return;
         vec dir;
-        float dist = projectiledistance(o, dir, v, vel);
+        float dist = projectiledistance(o, dir, v, vel, flags);
         if (dist < attacks[atk].exprad)
         {
             float radiusdamage = damage * (1 - dist / EXP_DISTSCALE / attacks[atk].exprad), damage = calcdamage(radiusdamage, (gameent*)o, at, atk);
-            int flags = HIT_TORSO;
-            if (isdirect) flags |= HIT_DIRECT;
-            registerhit(damage, o, at, o->o, dir, atk, dist, 1, flags);
+            int hitflags = HIT_TORSO;
+            if (isdirect) hitflags |= HIT_DIRECT;
+            registerhit(damage, o, at, o->o, dir, atk, dist, 1, hitflags);
         }
     }
 
@@ -283,7 +293,7 @@ namespace game
         {
             dynent* o = iterdynents(i);
             if (o->o.reject(pos, o->radius + attacks[proj.atk].exprad) || o == safe) continue;
-            applyradialeffect(o, pos, proj.vel, damage, proj.owner, proj.atk, proj.isdirect);
+            applyradialeffect(o, pos, proj.vel, damage, proj.owner, proj.atk, proj.isdirect, proj.flags);
         }
     }
 
