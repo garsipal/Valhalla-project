@@ -3966,6 +3966,7 @@ namespace server
                     hit.dist = getint(p)/DMF;
                     hit.rays = getint(p);
                     hit.flags = getint(p);
+                    hit.proj = getint(p);
                     loopk(3) hit.dir[k] = getint(p)/DNF;
                 }
                 if(cq)
@@ -3994,6 +3995,7 @@ namespace server
                     hit.dist = getint(p)/DMF;
                     hit.rays = getint(p);
                     hit.flags = getint(p);
+                    hit.proj = getint(p);
                     loopk(3) hit.dir[k] = getint(p)/DNF;
                 }
                 if(cq) cq->addevent(exp);

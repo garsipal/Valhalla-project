@@ -278,11 +278,7 @@ namespace game
         if(betweenrounds) return;
 
         gameent* f = (gameent*)d;
-        projectile* proj = NULL;
-        if (f->type == ENT_PROJECTILE)
-        {
-            proj = (projectile*)f;
-        }
+
         if (f->type == ENT_PLAYER && !isinvulnerable(f, at)) f->lastpain = lastmillis;
         if (at->type == ENT_PLAYER && f != at && !isally(f, at))
         {
@@ -313,13 +309,13 @@ namespace game
         else
         {
             hitmsg& h = hits.add();
-            h.target = proj ? proj->owner->clientnum : f->clientnum;
+            h.target = f->clientnum;
             h.lifesequence = f->lifesequence;
             h.dist = int(dist * DMF);
             h.rays = rays;
             h.flags = flags;
+            h.projectile = 0;
             h.dir = f == at ? ivec(0, 0, 0) : ivec(vec(velocity).mul(DNF));
-            h.projectile = proj ? proj->id : 0;
 
             if (at == self && f == at)
             {
