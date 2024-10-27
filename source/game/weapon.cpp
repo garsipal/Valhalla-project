@@ -273,41 +273,80 @@ namespace game
         return damage;
     }
 
-    void registerhit(int damage, dynent *d, gameent *at, const vec hit, const vec& velocity, int atk, float dist, int rays, int flags)
+    void applyhiteffects(int damage, dynent* target, gameent* at, const vec hit, int atk, int flags, bool local)
     {
-        if(betweenrounds) return;
-
-        gameent* f = (gameent*)d;
-
-        if (f->type == ENT_PLAYER && !isinvulnerable(f, at)) f->lastpain = lastmillis;
-        if (at->type == ENT_PLAYER && f != at && !isally(f, at))
+        if (!target || (!local && at == self && !(flags & HIT_MATERIAL)))
         {
-            at->totaldamage += damage;
+            return;
         }
-        if (at == self && d != at)
+
+        gameent* f = (gameent*)target;
+
+        if (f->type == ENT_PLAYER)
         {
-            extern int hitsound;
-            if (hitsound && at->lasthit != lastmillis)
+            gameent* hud = followingplayer(self);
+            if (at)
             {
-                playsound(isally(f, at) ? S_HIT_ALLY : S_HIT);
+                if (!isinvulnerable(f, at))
+                {
+                    f->lastpain = lastmillis;
+                    if (f != at && !isally(f, at))
+                    {
+                        at->totaldamage += damage;
+                    }
+                }
+                if ((local || (!local && hud != self)) && at == hud && f != at)
+                {
+                    extern int hitsound;
+                    if (hitsound && at->lasthit != lastmillis)
+                    {
+                        playsound(isally(f, at) ? S_HIT_ALLY : S_HIT);
+                    }
+                    at->lasthit = lastmillis;
+
+                    if (attacks[atk].action == ACT_MELEE)
+                    {
+                        addroll(at, damage / 2.0f);
+                    }
+                }
             }
-            at->lasthit = lastmillis;
+
+            if (target == hud)
+            {
+                damagehud(damage, f, at);
+            }
         }
-        if (f->type != ENT_AI && (!m_mp(gamemode) || f == at))
+
+        damageeffect(damage, f, hit, atk, getbloodcolor(f), flags & HIT_HEAD);
+    }
+
+    void registerhit(int damage, dynent *target, gameent *at, const vec hit, const vec& velocity, int atk, float dist, int rays, int flags)
+    {
+        if(betweenrounds || (target->type != ENT_PLAYER && target->type != ENT_AI)) return;
+
+        gameent* f = (gameent*)target;
+
+        if (f->type == ENT_PLAYER && (!m_mp(gamemode) || f == at))
         {
             f->hitpush(damage, velocity, at, atk);
         }
-        if (f->type == ENT_AI)
+        
+        if (!m_mp(gamemode))
         {
-            hitmonster(damage, (monster*)f, at, atk, flags);
-            f->hitpush(damage * (f->health <= 0 ? monsterdeadpush : 1), velocity, at, atk);
-        }
-        else if (!m_mp(gamemode))
-        {
-            damageentity(damage, hit, f, at, atk, flags);
+            // Damage the target locally.
+            if (f->type == ENT_PLAYER)
+            {
+                damageentity(damage, f, at, atk, flags);
+            }
+            else
+            {
+                hitmonster(damage, (monster*)f, at, atk, flags);
+                f->hitpush(damage * (f->health <= 0 ? monsterdeadpush : 1), velocity, at, atk);
+            }
         }
         else
         {
+            // Damage the target in multiplayer.
             hitmsg& h = hits.add();
             h.target = f->clientnum;
             h.lifesequence = f->lifesequence;
@@ -316,18 +355,12 @@ namespace game
             h.flags = flags;
             h.projectile = 0;
             h.dir = f == at ? ivec(0, 0, 0) : ivec(vec(velocity).mul(DNF));
+        }
 
-            if (at == self && f == at)
-            {
-                damagehud(damage, f, at);
-            }
-
-            damageeffect(damage, f, hit, atk, getbloodcolor(f), flags & HIT_HEAD);
-
-            if (at == followingplayer(self) && attacks[atk].action == ACT_MELEE)
-            {
-                addroll(at, damage / 2.0f);
-            }
+        // Apply hit effects like blood, shakes, etc.
+        if (target)
+        {
+            applyhiteffects(damage, target, at, hit, atk, flags, true);
         }
     }
 
@@ -429,7 +462,7 @@ namespace game
         }
         else if(isglass)
         {
-            particle_splash(PART_GLASS, 20, 200, to, 0xFFFFFF, 0.10 + rndscale(0.20f));
+            particle_splash(PART_GLASS, 20, 200, to, 0xFFFFFF, 0.10f + rndscale(0.20f));
             addstain(STAIN_GLASS_HOLE, to, vec(from).sub(to).normalize(), 0.30f + rndscale(1.0f));
             impactsound = S_IMPACT_GLASS;
         }

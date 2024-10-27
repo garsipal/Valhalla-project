@@ -1890,12 +1890,13 @@ namespace game
                     flags = getint(p), health = getint(p), shield = getint(p);
                 vec to;
                 loopk(3) to[k] = getint(p)/DMF;
-                gameent *target = getclient(tcn),
-                       *actor = getclient(acn);
+                gameent* target = getclient(tcn),
+                       * actor = getclient(acn);
                 if(!target || !actor) break;
                 target->health = health;
                 target->shield = shield;
-                damageentity(damage, to.iszero() ? target->o : to, target, actor, atk, flags, false);
+                damageentity(damage, target, actor, atk, flags, false);
+                applyhiteffects(damage, d, actor, to.iszero() ? target->o : to, atk, flags, false);
                 break;
             }
 

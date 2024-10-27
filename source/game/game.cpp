@@ -449,18 +449,38 @@ namespace game
 
     void addroll(gameent *d, float amount)
     {
-        d->roll += d->roll > 0 ? amount : (d->roll < 0 ? -amount : (rnd(2) ? amount : -amount));
+        if (!d || (d->lastyelp && lastmillis - d->lastyelp <= 500))
+        {
+            return;
+        }
+
+        d->roll += d->roll > 0 ? (-amount / 2) : (d->roll < 0 ? (amount / 2) : (rnd(2) ? amount : -amount));
     }
 
-    FVARP(damagerolldiv, 0, 4.0f, 5.0f);
+    FVARP(damagerolldiv, 0, 4.0f, 10.0f);
 
     void damagehud(int damage, gameent *d, gameent *actor)
     {
+        if (!d)
+        {
+            return;
+        }
+
         damageblend(damage);
-        if(d != actor) damagecompass(damage, actor->o);
-        if(!damagerolldiv) return;
-        float damroll = damage / damagerolldiv;
-        addroll(d, damroll);
+        if (actor)
+        {
+            if (d != actor)
+            {
+                damagecompass(damage, actor->o);
+            }
+        }
+        if (!damagerolldiv)
+        {
+            return;
+        }
+
+        float damageRoll = damage / damagerolldiv;
+        addroll(d, damageRoll);
     }
 
     VARP(hitsound, 0, 0, 1);
