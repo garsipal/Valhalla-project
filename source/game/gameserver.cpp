@@ -3008,8 +3008,8 @@ namespace server
             {
                 hitinfo &h = hits[i];
                 clientinfo *target = getinfo(h.target);
-                bool notarget = !target || target->state.state != CS_ALIVE || h.lifesequence != target->state.lifesequence;
-                if(notarget || !h.proj || h.rays < 1 || h.dist > attacks[atk].range + 1) continue;
+                bool notarget = !target || ((target->state.state != CS_ALIVE || h.lifesequence != target->state.lifesequence) && !h.proj);
+                if(notarget || h.rays < 1 || h.dist > attacks[atk].range + 1) continue;
 
                 totalrays += h.rays;
                 if(totalrays>maxrays) continue;
