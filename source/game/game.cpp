@@ -409,12 +409,6 @@ namespace game
     ICOMMAND(secondary, "D", (int *down), doaction(*down ? ACT_SECONDARY : ACT_IDLE));
     ICOMMAND(melee, "D", (int *down), doaction(*down ? ACT_MELEE : ACT_IDLE));
 
-    bool allowmove(physent* d)
-    {
-        if (d->type != ENT_PLAYER || d->state == CS_SPECTATOR) return true;
-        return !intermission && !(gore && ((gameent*)d)->gibbed());
-    }
-
     bool isally(gameent *a, gameent *b)
     {
         return (m_teammode && validteam(a->team) && validteam(b->team) && sameteam(a->team, b->team))
@@ -436,12 +430,6 @@ namespace game
         return self->state==CS_SPECTATOR || m_edit || (m_berserker && self->role == ROLE_BERSERKER);
     }
     ICOMMAND(allowthirdperson, "", (), intret(allowthirdperson()));
-
-    bool allowmove(gameent* d)
-    {
-        if (d->type != ENT_PLAYER || d->state == CS_SPECTATOR) return true;
-        return !intermission && !(gore && ((gameent*)d)->gibbed());
-    }
 
     bool editing() { return m_edit; }
 
@@ -477,37 +465,18 @@ namespace game
 
     VARP(hitsound, 0, 0, 1);
 
-    void damageentity(int damage, const vec hit, gameent *d, gameent *actor, int atk, int flags, bool local)
+    void damageentity(int damage, gameent *d, gameent *actor, int atk, int flags, bool local)
     {
         if(intermission || (d->state != CS_ALIVE && d->state != CS_LAGGED && d->state != CS_SPAWNING))
         {
             return;
         }
 
-        if(local)
+        if (local)
         {
             damage = d->dodamage(damage);
         }
-        else if(actor == self && !(flags & HIT_MATERIAL)) return;
-        else if(!isinvulnerable(d, actor)) d->lastpain = lastmillis;
-
-        damageeffect(damage, d, hit, atk, getbloodcolor(d), flags & HIT_HEAD);
-
-        if(isinvulnerable(d, actor)) return;
-
-        gameent *hud = hudplayer();
-        if(hud != self && actor == hud && d != actor)
-        {
-            if(hitsound && actor->lasthit != lastmillis)
-            {
-                playsound(isally(d, actor) ? S_HIT_ALLY : S_HIT);
-                actor->lasthit = lastmillis;
-            }
-        }
-        if(d == hud)
-        {
-            damagehud(damage, d, actor);
-        }
+        else if (actor == self) return;
 
         ai::damaged(d, actor);
         if(local && d->health <= 0)
@@ -1020,13 +989,27 @@ namespace game
 
     void hurt(gameent *d)
     {
-        if(m_mp(gamemode)) return;
+        // Apply environmental damage locally when inside harmful materials like lava.
+        if (m_mp(gamemode))
+        {
+            return;
+        }
+
         if(d == self || (d->type == ENT_PLAYER && d->ai))
         {
-            if(d->state != CS_ALIVE) return;
-            if((d->lasthurt && lastmillis - d->lasthurt < DELAY_ENVDAM) || d->haspowerup(PU_INVULNERABILITY)) return;
-            damageentity(DAM_ENV, d->o, d, d, -1, HIT_MATERIAL, true);
-            d->lasthurt = lastmillis;
+            // This is local, so valid only if the entity is a bot or ourselves.
+            if (d->state != CS_ALIVE || d->haspowerup(PU_INVULNERABILITY))
+            {
+                // The entity is dead or invulnerable? We stop caring.
+                return;
+            }
+
+            if (d->lasthurt && lastmillis - d->lasthurt >= DELAY_ENVDAM)
+            {
+                // If the delay has elapsed, apply environmental damage to the entity.
+                damageentity(DAM_ENV, d, d, -1, HIT_MATERIAL, true);
+                d->lasthurt = lastmillis;
+            }
         }
     }
 

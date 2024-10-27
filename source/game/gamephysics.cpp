@@ -195,6 +195,12 @@ namespace physics
         return false;
     }
 
+    bool allowmove(gameent* d)
+    {
+        if (d->type != ENT_PLAYER || d->state == CS_SPECTATOR) return true;
+        return !intermission && !(gore && ((gameent*)d)->gibbed());
+    }
+
     bool trystepdown(gameent* d, vec& dir, bool init = false)
     {
         if ((!d->move && !d->strafe) || !allowmove(d)) return false;

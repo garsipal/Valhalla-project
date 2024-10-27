@@ -575,6 +575,7 @@ namespace physics
 
     extern bool hasbounced(projectile* proj, float secs, float elasticity, float waterfric, float gravity);
     extern bool isbouncing(projectile* proj, float elasticity, float waterfric, float gravity);
+    extern bool allowmove(gameent* d);
 
     extern int physsteps;
     extern int liquidtransition(physent* d, int material, bool isinwater);
@@ -626,7 +627,6 @@ namespace game
 
     extern bool clientoption(const char *arg);
     extern bool gamewaiting, betweenrounds, hunterchosen;
-    extern bool allowmove(physent* d);
     extern bool isally(gameent *a, gameent *b);
     extern bool isinvulnerable(gameent *target, gameent *actor);
 
@@ -651,7 +651,7 @@ namespace game
     extern void respawn();
     extern void deathstate(gameent *d, bool restore = false);
     extern void damagehud(int damage, gameent *d, gameent *actor);
-    extern void damageentity(int damage, const vec hit, gameent *d, gameent *actor, int atk, int flags = 0, bool local = true);
+    extern void damageentity(int damage, gameent *d, gameent *actor, int atk, int flags = 0, bool local = true);
     extern void writeobituary(gameent *d, gameent *actor, int atk, int flags = 0);
     extern void checkannouncements(gameent *actor, int flags);
     extern void kill(gameent *d, gameent *actor, int atk, int flags = KILL_NONE);
@@ -707,8 +707,8 @@ namespace game
     extern void gunselect(int gun, gameent *d);
     extern void weaponswitch(gameent *d);
     extern void removeprojectiles(gameent* owner = NULL);
-    extern void avoidprojectiles(ai::avoidset &obstacles, float radius);
-    extern void registerhit(int damage, dynent* d, gameent* at, const vec hit, const vec& velocity, int atk, float dist, int rays = 1, int flags = HIT_TORSO);
+    extern void applyhiteffects(int damage, dynent* target, gameent* at, const vec hit, int atk, int flags, bool local);
+    extern void registerhit(int damage, dynent *target, gameent* at, const vec hit, const vec& velocity, int atk, float dist, int rays = 1, int flags = HIT_TORSO);
 
     // projectile.cpp
     extern vector<projectile*> projectiles;
@@ -722,8 +722,7 @@ namespace game
     extern void bounce(physent* d, const vec& surface);
     extern void collidewithentity(physent* bouncer, physent* collideentity);
     extern void explodeeffects(int atk, gameent* d, bool islocal, int id = 0);
-    //extern void applyprojectileeffects(projectile& proj, vec pos, vec dv = vec(0, 0, 0));
-
+    extern void avoidprojectiles(ai::avoidset& obstacles, float radius);
 
     // monster.cpp
     struct monster;
