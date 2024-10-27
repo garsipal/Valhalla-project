@@ -33,12 +33,13 @@ namespace game
     {
         loopv(projectiles)
         {
-            projectile *proj = projectiles[i];
+            projectile* proj = projectiles[i];
             if (proj->id == id && (!owner || proj->owner == owner))
             {
                 return proj;
             }
         }
+        return NULL;
     }
 
     void makeprojectile(gameent *owner, const vec &from, const vec &to, bool islocal, int id, int atk, int type, int lifetime, int speed, float gravity, float elasticity)

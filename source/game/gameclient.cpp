@@ -1942,6 +1942,7 @@ namespace game
                        * actor = getclient(actorcn);
                 if (!target || !actor) break;
                 projectile* proj = getprojectile(projid, target);
+                if (!proj) break;
                 proj->hit(target, actor, damage, atk, dir);
                 applyhiteffects(damage, (dynent*)proj, actor, proj->o, atk, 0, false);
                 break;
