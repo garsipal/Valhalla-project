@@ -1926,6 +1926,27 @@ namespace game
                 break;
             }
 
+            case Net_DamageProjectile:
+            {
+                int projid = getint(p),
+                    targetcn = getint(p),
+                    actorcn = getint(p),
+                    damage = getint(p),
+                    atk = getint(p);
+                vec dir;
+                loopk(3)
+                {
+                    dir[k] = getint(p) / DNF;
+                }
+                gameent* target = getclient(targetcn),
+                       * actor = getclient(actorcn);
+                if (!target || !actor) break;
+                projectile* proj = getprojectile(projid, target);
+                proj->hit(target, actor, damage, atk, dir);
+                applyhiteffects(damage, (dynent*)proj, actor, proj->o, atk, 0, false);
+                break;
+            }
+
             case N_TEAMINFO:
                 loopi(MAXTEAMS)
                 {

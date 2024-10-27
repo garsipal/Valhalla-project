@@ -2860,6 +2860,16 @@ namespace server
         shouldcheckround();
     }
 
+    void hitprojectile(int proj, clientinfo* target, clientinfo* actor, int damage, int atk, const vec& hitpush = vec(0, 0, 0))
+    {
+        if (!actor)
+        {
+            return;
+        }
+        ivec push(vec(hitpush).rescale(DNF));
+        sendf(-1, 1, "rii8", Net_DamageProjectile, proj, target->clientnum, actor->clientnum, damage, atk, push.x, push.y, push.z);
+    }
+
     void dodamage(clientinfo *target, clientinfo *actor, int damage, int atk, int flags = 0, const vec &hitpush = vec(0, 0, 0), const vec to = vec(0, 0, 0))
     {
         if((target == actor && !selfdamage) || (isally(target, actor) && !teamdamage) || (m_round && betweenrounds)) return;
@@ -2998,12 +3008,20 @@ namespace server
             {
                 hitinfo &h = hits[i];
                 clientinfo *target = getinfo(h.target);
-                if(!target || target->state.state!=CS_ALIVE || h.lifesequence!=target->state.lifesequence || h.rays<1 || h.dist > attacks[atk].range + 1) continue;
+                bool notarget = !target || target->state.state != CS_ALIVE || h.lifesequence != target->state.lifesequence;
+                if(notarget || !h.proj || h.rays < 1 || h.dist > attacks[atk].range + 1) continue;
 
                 totalrays += h.rays;
                 if(totalrays>maxrays) continue;
                 int raydamage = h.rays*attacks[atk].damage, damage = calcdamage(raydamage, target, ci, atk, h.flags);
-                dodamage(target, ci, damage, atk, h.flags, h.dir, to);
+                if (h.proj)
+                {
+                    hitprojectile(h.proj, target, ci, damage, atk, h.dir);
+                }
+                else
+                {
+                    dodamage(target, ci, damage, atk, h.flags, h.dir, to);
+                }
                 hit = true;
                 sendf(-1, 1, "rii9ix", N_SHOTFX, ci->clientnum, atk, id, hit, int(from.x*DMF), int(from.y*DMF), int(from.z*DMF), int(to.x*DMF), int(to.y*DMF), int(to.z*DMF), ci->ownernum);
 

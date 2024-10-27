@@ -29,6 +29,18 @@ namespace game
 {
     vector<projectile *> projectiles;
 
+    projectile* getprojectile(int id, gameent* owner)
+    {
+        loopv(projectiles)
+        {
+            projectile *proj = projectiles[i];
+            if (proj->id == id && (!owner || proj->owner == owner))
+            {
+                return proj;
+            }
+        }
+    }
+
     void makeprojectile(gameent *owner, const vec &from, const vec &to, bool islocal, int id, int atk, int type, int lifetime, int speed, float gravity, float elasticity)
     {
         projectile &proj = *projectiles.add(new projectile);
@@ -553,7 +565,7 @@ namespace game
                 handleprojectileeffects(proj, pos);
             }
             checkloopsound(&proj);
-            if (proj.isdestroyed)
+            if (proj.isdestroyed || proj.state == CS_DEAD)
             {
                 if (isweaponprojectile(proj.projtype))
                 {

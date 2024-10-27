@@ -134,6 +134,25 @@ struct projectile : physent
         inwater = isinwater ? material & MATF_VOLUME : MAT_AIR;
     }
 
+    void kill(gameent* target, gameent* actor, int damage, int atk)
+    {
+        owner = actor;
+        state = CS_DEAD;
+    }
+
+    void hit(gameent* target, gameent* actor, int damage, int atk, const vec& dir)
+    {
+        vec push(dir);
+        push.mul(damage * 100);
+        vel.add(push);
+
+        health -= damage;
+        if (health <= 0)
+        {
+            kill(target, actor, damage, atk);
+        }
+    }
+
     vec offsetposition()
     {
         vec pos(o);

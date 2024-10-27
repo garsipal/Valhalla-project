@@ -167,62 +167,72 @@ namespace game
     VARP(goreeffect, 0, 0, 2);
     VARP(playheadshotsound, 0, 1, 1);
 
-    void damageeffect(int damage, dynent *d, vec hit, int atk, int color, bool headshot)
+    void damageeffect(int damage, dynent *d, vec hit, int atk, bool headshot)
     {
-        gameent *f = (gameent *)d, *hud = followingplayer(self);
-        if(f == hud)
+        if (d->type == ENT_PLAYER || d->type == ENT_AI)
         {
-            hit.z += 0.6f*(d->eyeheight + d->aboveeye) - d->eyeheight;
-        }
-        if(f->haspowerup(PU_INVULNERABILITY) || f->shield)
-        {
-            particle_splash(PART_SPARK2, 100, 150, hit, f->haspowerup(PU_INVULNERABILITY) ? getplayercolor(f, f->team) : 0xFFFF66, 0.50f);
-            if(f->haspowerup(PU_INVULNERABILITY))
+            gameent* f = (gameent*)d, * hud = followingplayer(self);
+            const int color = getbloodcolor(f);
+            if (f == hud)
             {
-                playsound(S_ACTION_INVULNERABILITY, f);
-                return;
+                hit.z += 0.6f * (d->eyeheight + d->aboveeye) - d->eyeheight;
             }
-        }
-        if(blood && color != -1)
-        {
-            particle_splash(PART_BLOOD, damage/10, 1000, hit, color, 2.60f);
-            particle_splash(PART_BLOOD2, 200, 250, hit, color, 0.50f);
-        }
-        else
-        {
-            particle_flare(hit, hit, 100, PART_MUZZLE_FLASH3, 0xFFFF66, 3.5f);
-            particle_splash(PART_SPARK2, damage/5, 500, hit, 0xFFFF66, 0.5f, 300);
-        }
-        if(f->health > 0 && lastmillis-f->lastyelp > 600)
-        {
-            if(f != hud && f->shield) playsound(S_SHIELD_HIT, f);
-            if(f->type == ENT_PLAYER)
+            if (f->haspowerup(PU_INVULNERABILITY) || f->shield)
             {
-                int painsound = getplayermodelinfo(f).painsound;
-                if (validsound(painsound))
+                particle_splash(PART_SPARK2, 100, 150, hit, f->haspowerup(PU_INVULNERABILITY) ? getplayercolor(f, f->team) : 0xFFFF66, 0.50f);
+                if (f->haspowerup(PU_INVULNERABILITY))
                 {
-                    playsound(painsound, f);
+                    playsound(S_ACTION_INVULNERABILITY, f);
+                    return;
                 }
-                f->lastyelp = lastmillis;
             }
-        }
-        if(validatk(atk))
-        {
-            if(headshot && playheadshotsound)
+            if (blood && color != -1)
             {
-                playsound(S_HIT_WEAPON_HEAD, NULL, &f->o);
+                particle_splash(PART_BLOOD, damage / 10, 1000, hit, color, 2.60f);
+                particle_splash(PART_BLOOD2, 200, 250, hit, color, 0.50f);
             }
             else
             {
-                int hitsound = attacks[atk].hitsound;
-                if (validsound(hitsound))
+                particle_flare(hit, hit, 100, PART_MUZZLE_FLASH3, 0xFFFF66, 3.5f);
+                particle_splash(PART_SPARK2, damage / 5, 500, hit, 0xFFFF66, 0.5f, 300);
+            }
+            if (f->health > 0 && lastmillis - f->lastyelp > 600)
+            {
+                if (f != hud && f->shield) playsound(S_SHIELD_HIT, f);
+                if (f->type == ENT_PLAYER)
                 {
-                    playsound(attacks[atk].hitsound, NULL, &f->o);
+                    int painsound = getplayermodelinfo(f).painsound;
+                    if (validsound(painsound))
+                    {
+                        playsound(painsound, f);
+                    }
+                    f->lastyelp = lastmillis;
                 }
             }
+            if (validatk(atk))
+            {
+                if (headshot && playheadshotsound)
+                {
+                    playsound(S_HIT_WEAPON_HEAD, NULL, &f->o);
+                }
+                else
+                {
+                    int hitsound = attacks[atk].hitsound;
+                    if (validsound(hitsound))
+                    {
+                        playsound(attacks[atk].hitsound, NULL, &f->o);
+                    }
+                }
+            }
+            else playsound(S_PLAYER_DAMAGE, NULL, &f->o);
+            if (f->haspowerup(PU_ARMOR)) playsound(S_ACTION_ARMOR, NULL, &f->o);
         }
-        else playsound(S_PLAYER_DAMAGE, NULL, &f->o);
-        if(f->haspowerup(PU_ARMOR)) playsound(S_ACTION_ARMOR, NULL, &f->o);
+        else if (d->type == ENT_PROJECTILE)
+        {
+            particle_flare(hit, hit, 100, PART_MUZZLE_FLASH3, 0xFFFF66, 3.5f);
+            particle_splash(PART_SPARK2, damage / 5, 500, hit, 0xFFFF66, 0.5f, 300);
+            playsound(S_BOUNCE_ROCKET, NULL, &hit);
+        }
     }
 
     void gibeffect(int damage, const vec &vel, gameent *d, bool force)
@@ -280,10 +290,9 @@ namespace game
             return;
         }
 
-        gameent* f = (gameent*)target;
-
-        if (f->type == ENT_PLAYER)
+        if (target->type == ENT_PLAYER || target->type == ENT_AI)
         {
+            gameent* f = (gameent*)target;
             gameent* hud = followingplayer(self);
             if (at)
             {
@@ -317,7 +326,7 @@ namespace game
             }
         }
 
-        damageeffect(damage, f, hit, atk, getbloodcolor(f), flags & HIT_HEAD);
+        damageeffect(damage, target, hit, atk, flags & HIT_HEAD);
     }
 
     void registerhit(int damage, dynent *target, gameent *at, const vec hit, const vec& velocity, int atk, float dist, int rays, int flags)
@@ -330,30 +339,43 @@ namespace game
         {
             f->hitpush(damage, velocity, at, atk);
         }
+
+        projectile* proj = NULL;
+        if (target->type == ENT_PROJECTILE)
+        {
+            proj = (projectile*)target;
+        }
         
         if (!m_mp(gamemode))
         {
             // Damage the target locally.
-            if (f->type == ENT_PLAYER)
+            if (target->type == ENT_PLAYER)
             {
                 damageentity(damage, f, at, atk, flags);
             }
-            else
+            else if (target->type == ENT_AI)
             {
                 hitmonster(damage, (monster*)f, at, atk, flags);
                 f->hitpush(damage * (f->health <= 0 ? monsterdeadpush : 1), velocity, at, atk);
+            }
+            else if (target->type == ENT_PROJECTILE)
+            {
+                if (proj)
+                {
+                    proj->hit(proj->owner, at, damage, atk, velocity);
+                }
             }
         }
         else
         {
             // Damage the target in multiplayer.
             hitmsg& h = hits.add();
-            h.target = f->clientnum;
+            h.target = proj ? proj->owner->clientnum : f->clientnum;
             h.lifesequence = f->lifesequence;
             h.dist = int(dist * DMF);
             h.rays = rays;
             h.flags = flags;
-            h.projectile = 0;
+            h.projectile = proj ? proj->id : 0;
             h.dir = f == at ? ivec(0, 0, 0) : ivec(vec(velocity).mul(DNF));
         }
 
