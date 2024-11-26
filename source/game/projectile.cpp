@@ -306,6 +306,10 @@ namespace game
         {
             dynent* o = iterdynents(i);
             if (o->o.reject(pos, o->radius + attacks[proj.atk].exprad) || o == safe) continue;
+            if (o->type == ENT_PROJECTILE)
+            {
+                conoutf(CON_GAMEINFO, "\f2projectile hit");
+            }
             applyradialeffect(o, pos, proj.vel, damage, proj.owner, proj.atk, proj.isdirect, proj.flags);
         }
     }
@@ -331,7 +335,7 @@ namespace game
                         if (atk == ATK_PISTOL_COMBO) proj.atk = atk;
                         else if (proj.atk != atk) continue;
                         vec pos = proj.flags & ProjFlag_Bounce ? proj.offsetposition() : vec(proj.offset).mul(proj.offsetmillis / float(OFFSETMILLIS)).add(proj.o);
-                        explodeprojectile(proj, pos, NULL, 0, proj.islocal);
+                        explodeprojectile(proj, pos, &proj, 0, proj.islocal);
                         delete projectiles.remove(i);
                         break;
                     }
@@ -523,9 +527,13 @@ namespace game
                     if (!betweenrounds) loopj(numdynents())
                     {
                         dynent* o = iterdynents(j);
-                        if (proj.owner == o || o->o.reject(bo, o->radius + br)) continue;
+                        if (o == &proj || proj.owner == o || o->o.reject(bo, o->radius + br)) continue;
                         if (candealdamage(o, proj, pos, attacks[proj.atk].damage))
                         {
+                            if (o->type == ENT_PROJECTILE)
+                            {
+                                conoutf(CON_GAMEINFO, "\f2projectile hit");
+                            }
                             proj.isdestroyed = true;
                             proj.isdirect = true;
                             break;
@@ -566,11 +574,11 @@ namespace game
                 handleprojectileeffects(proj, pos);
             }
             checkloopsound(&proj);
-            if (proj.isdestroyed || proj.state == CS_DEAD)
+            if (proj.isdestroyed)
             {
                 if (isweaponprojectile(proj.projtype))
                 {
-                    explodeprojectile(proj, pos, NULL, attacks[proj.atk].damage, proj.islocal);
+                    explodeprojectile(proj, pos, &proj, attacks[proj.atk].damage, proj.islocal);
                     if (proj.islocal)
                     {
                         addmsg(N_EXPLODE, "rci3iv", proj.owner, lastmillis - maptime, proj.atk, proj.id - maptime, hits.length(), hits.length() * sizeof(hitmsg) / sizeof(int), hits.getbuf());
@@ -628,7 +636,7 @@ namespace game
                 if (attacks[atk].gun == GUN_PISTOL && proj.o.dist(point) <= attacks[proj.atk].margin)
                 {
                     proj.atk = ATK_PISTOL_COMBO;
-                    explodeprojectile(proj, proj.o, NULL, attacks[proj.atk].damage, proj.islocal);
+                    explodeprojectile(proj, proj.o, &proj, attacks[proj.atk].damage, proj.islocal);
                     if(d == self || d->ai)
                     {
                         addmsg(N_EXPLODE, "rci3iv", proj.owner, lastmillis-maptime, proj.atk, proj.id-maptime,

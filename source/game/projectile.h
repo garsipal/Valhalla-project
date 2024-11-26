@@ -55,7 +55,7 @@ inline bool isweaponprojectile(int projectile)
     return isvalidprojectile(projectile) && projs[projectile].flags & ProjFlag_Weapon && !(projs[projectile].flags & ProjFlag_Junk);
 }
 
-struct projectile : physent
+struct projectile : dynent
 {
     gameent* owner;
 
@@ -73,6 +73,7 @@ struct projectile : physent
 
     projectile() : isdestroyed(false), isdirect(false), roll(0), variant(0), bounces(0), lastbounce(0), bouncesound(-1), loopchan(-1), loopsound(-1)
     {
+        state = CS_ALIVE;
         type = ENT_PROJECTILE;
         collidetype = COLLIDE_ELLIPSE;
     }
@@ -138,6 +139,7 @@ struct projectile : physent
     {
         owner = actor;
         state = CS_DEAD;
+        isdestroyed = true;
     }
 
     void hit(gameent* target, gameent* actor, int damage, int atk, const vec& dir)

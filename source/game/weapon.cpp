@@ -331,7 +331,7 @@ namespace game
 
     void registerhit(int damage, dynent *target, gameent *at, const vec hit, const vec& velocity, int atk, float dist, int rays, int flags)
     {
-        if(betweenrounds || (target->type != ENT_PLAYER && target->type != ENT_AI)) return;
+        if(betweenrounds) return;
 
         gameent* f = (gameent*)target;
 
@@ -722,28 +722,29 @@ namespace game
         return linecylinderintersect(from, to, bottom, top, d->legsradius, dist);
     }
 
-    bool isintersecting(dynent *d, const vec &from, const vec &to, float margin, float &dist)   // if lineseg hits entity bounding box
+    bool isintersecting(dynent *d, const vec &from, const vec &to, float margin, float &dist)
     {
+        // Does the ray hit an entity's bounding box?
         vec bottom(d->o), top(d->o);
         bottom.z -= d->eyeheight + margin;
         top.z += d->aboveeye + margin;
         return linecylinderintersect(from, to, bottom, top, d->radius + margin, dist);
     }
 
-    dynent *intersectclosest(const vec &from, const vec &to, gameent *at, float margin, float &bestdist)
+    dynent *intersectclosest(const vec &from, const vec &to, gameent *at, float margin, float &bestdistance)
     {
         dynent *best = NULL;
-        bestdist = 1e16f;
+        bestdistance = 1e16f;
         loopi(numdynents())
         {
             dynent *o = iterdynents(i);
             if(o==at || o->state!=CS_ALIVE) continue;
-            float dist;
-            if(!isintersecting(o, from, to, margin, dist)) continue;
-            if(dist<bestdist)
+            float distance;
+            if(!isintersecting(o, from, to, margin, distance)) continue;
+            if(distance < bestdistance)
             {
                 best = o;
-                bestdist = dist;
+                bestdistance = distance;
             }
         }
         return best;
@@ -772,6 +773,10 @@ namespace game
                     hithead = isheadhitbox(hits[i], from, rays[i], dist);
                     shorten(from, rays[i], dist);
                     impacteffects(atk, d, from, rays[i], true);
+                    if (hits[i]->type == ENT_PROJECTILE)
+                    {
+                        conoutf(CON_GAMEINFO, "\f2projectile hit");
+                    }
                 }
                 else impacteffects(atk, d, from, rays[i]);
             }
@@ -779,6 +784,10 @@ namespace game
             loopi(maxrays) if(hits[i])
             {
                 o = hits[i];
+                if (o->type == ENT_PROJECTILE)
+                {
+                    conoutf(CON_GAMEINFO, "\f2projectile hit");
+                }
                 hits[i] = NULL;
                 int numhits = 1;
                 for(int j = i+1; j < maxrays; j++) if(hits[j] == o)
@@ -792,6 +801,10 @@ namespace game
                     if(hitlegs) flags |= HIT_LEGS;
                 }
                 int damage = calcdamage(attacks[atk].damage, (gameent*) o, d, atk, flags);
+                if (o->type == ENT_PROJECTILE)
+                {
+                    conoutf(CON_GAMEINFO, "\f2projectile hit");
+                }
                 registerhit(numhits * damage, o, d, rays[i], vec(to).sub(from).safenormalize(), atk, from.dist(to), numhits, flags);
             }
         }
