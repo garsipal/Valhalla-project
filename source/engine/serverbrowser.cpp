@@ -542,9 +542,9 @@ void checkpings()
         si->attr.setsize(0);
         loopj(numattr) { int attr = getint(p); if(p.overread()) break; si->attr.add(attr); }
         getstring(text, p);
-        filtertext(si->map, text, false, false, false);
+        filtertext(si->map, text, T_NONE);
         getstring(text, p);
-        filtertext(si->desc, text, true, false);
+        filtertext(si->desc, text, T_COLORS | T_WHITESPACE);
         if(p.remaining())
         {
             si->gameversion = getint(p);
@@ -733,7 +733,7 @@ COMMAND(initservers, "");
 void writeservercfg()
 {
     if(!game::savedservers()) return;
-    stream *f = openutf8file(path(game::savedservers(), true), "w");
+    stream *f = openfile(path(game::savedservers(), true), "w");
     if(!f) return;
     int kept = 0;
     loopv(servers)

@@ -1183,7 +1183,7 @@ void printtimers(int conw, int conh)
     {
         static int printmillis = 0;
         if(totalmillis - lastprint >= 200) printmillis = framemillis;
-        draw_textf("frame time %i ms", conw-20*FONTH, conh-FONTH*3/2-offset*9*FONTH/8, printmillis);
+        text::draw_as_console_fmt("frame time %i ms", conw-20*FONTH, conh-FONTH*3/2-offset*9*FONTH/8, printmillis);
         offset++;
     }
     if(usetimers) loopv(timerorder)
@@ -1191,7 +1191,7 @@ void printtimers(int conw, int conh)
         timer &t = timers[timerorder[i]];
         if(t.print < 0 ? t.result >= 0 : totalmillis - lastprint >= 200) t.print = t.result;
         if(t.print < 0 || (t.gpu && !(t.waiting&(1<<timercycle)))) continue;
-        draw_textf("%s%s %5.2f ms", conw-20*FONTH, conh-FONTH*3/2-offset*9*FONTH/8, t.name, t.gpu ? "" : " (cpu)", t.print);
+        text::draw_as_console_fmt("%s%s %5.2f ms", conw-20*FONTH, conh-FONTH*3/2-offset*9*FONTH/8, t.name, t.gpu ? "" : " (cpu)", t.print);
         offset++;
     }
     if(totalmillis - lastprint >= 200) lastprint = totalmillis;
@@ -2366,7 +2366,7 @@ VARP(showfps, 0, 0, 1);
 VARP(showfpsrange, 0, 0, 1);
 VAR(statrate, 1, 200, 1000);
 
-FVARP(conscale, 1e-3f, 0.45f, 1e3f);
+FVARP(conscale, 0.5f, 1.f, 2.f);
 
 void resethudshader()
 {
@@ -2379,14 +2379,15 @@ void gl_drawhud()
     int w = hudw, h = hudh;
     if(forceaspect) w = int(ceil(h*forceaspect));
 
-    gettextres(w, h);
+    text::getres(w, h);
 
     hudmatrix.ortho(0, w, h, 0, -1, 1);
     resethudmatrix();
     resethudshader();
 
     pushfont();
-    setfont("default.ol");
+    setfont("default");
+    setfontsize(hudh * conscale / CONSOLETEXTROWS);
 
     debuglights();
 
@@ -2394,12 +2395,12 @@ void gl_drawhud()
 
     debugparticles();
 
-    float conw = w/conscale, conh = h/conscale, abovehud = conh - FONTH;
+    float conw = w, conh = h, abovehud = conh - FONTH;
     if(showhud && !mainmenu)
     {
         if(showstats)
         {
-            pushhudscale(conscale);
+            setfontsize(hudh * conscale / CONSOLETEXTROWS);
 
             int roffset = 0;
             if(showfps)
@@ -2413,8 +2414,8 @@ void gl_drawhud()
                 int nextfps[3];
                 getfps(nextfps[0], nextfps[1], nextfps[2]);
                 loopi(3) if(prevfps[i]==curfps[i]) curfps[i] = nextfps[i];
-                if(showfpsrange) draw_textf("fps %d+%d-%d", conw-7*FONTH, conh-FONTH*3/2, curfps[0], curfps[1], curfps[2]);
-                else draw_textf("fps %d", conw-5*FONTH, conh-FONTH*3/2, curfps[0]);
+                if(showfpsrange) text::draw_as_console_fmt("fps %d+%d-%d", conw-7*FONTH, conh-FONTH*3/2, curfps[0], curfps[1], curfps[2]);
+                else text::draw_as_console_fmt("fps %d", conw-5*FONTH, conh-FONTH*3/2, curfps[0]);
                 roffset += FONTH;
             }
 
@@ -2434,12 +2435,10 @@ void gl_drawhud()
                     const char *src = &buf[!wallclock24 && buf[0]=='0' ? 1 : 0];
                     while(*src) *dst++ = tolower(*src++);
                     *dst++ = '\0';
-                    draw_text(buf, conw-5*FONTH, conh-FONTH*3/2-roffset);
+                    text::draw_as_console_fmt(buf, conw-5*FONTH, conh-FONTH*3/2-roffset);
                     roffset += FONTH;
                 }
             }
-
-            pophudmatrix();
         }
 
         rendertexturepanel(w, h);
@@ -2447,13 +2446,12 @@ void gl_drawhud()
 
     abovehud = min(abovehud, conh*UI::abovehud());
 
-    pushhudscale(conscale);
+    setfontsize(hudh * conscale / CONSOLETEXTROWS);
     abovehud -= rendercommand(FONTH/2, abovehud - FONTH/2, conw-FONTH);
     if(showhud && !(UI::uivisible("main") || UI::uivisible("fullconsole")))
     {
         renderconsole(conw, conh, abovehud - FONTH/2);
     }
-    pophudmatrix();
 
     game::drawpointers(w, h);
 

@@ -27,7 +27,7 @@ namespace game
 
     void switchname(const char* name)
     {
-        filtertext(self->name, name, false, false, true, false, MAXNAMELEN);
+        filtertext(self->name, name, T_WHITESPACE | T_NAME, MAXNAMELEN, MAXNAMEUNILEN);
         if (!self->name[0]) copystring(self->name, "player");
         if (!name[0])
         {
@@ -1525,11 +1525,11 @@ namespace game
                     break;
                 }
                 getstring(text, p);
-                filtertext(text, text, false, false, false, false, MAXCOUNTRYCODELEN);
+                filtertext(text, text, T_NONE, MAXCOUNTRYCODELEN);
                 validcountrycode(d->country_code, text);
 
                 getstring(text, p);
-                filtertext(d->country_name, text, false, false, true, false, MAXSTRLEN);
+                filtertext(d->country_name, text, T_WHITESPACE, MAXSTRLEN);
                 break;
             }
 
@@ -1585,10 +1585,10 @@ namespace game
                 int cn = getint(p);
                 gameent *d = getclient(cn);
                 getstring(text, p);
-                filtertext(text, text, false, false, true, true);
+                filtertext(text, text, T_WHITESPACE | T_FORCESPACE);
                 if(!d || isignored(d->clientnum)) break;
                 if(d->state!=CS_DEAD && d->state!=CS_SPECTATOR)
-                    particle_textcopy(d->abovehead(), text, PART_TEXT, 2000, 0x32FF64, 4.0f, -8);
+                    particle_textcopy(d->abovehead(), text, PART_TEXT, 2000, 0x32FF64, 4.0f, -8, "default");
                 conoutf(CON_CHAT, "%s: \fs%s%s\fr", teamcolorname(d), chatcolor(d), text);
                 if(chatsound == 1) playsound(S_CHAT);
                 break;
@@ -1599,13 +1599,13 @@ namespace game
                 int tcn = getint(p);
                 gameent *t = getclient(tcn);
                 getstring(text, p);
-                filtertext(text, text, false, false, true, true);
+                filtertext(text, text, T_WHITESPACE | T_FORCESPACE);
                 int sound = getint(p);
                 if(!t || isignored(t->clientnum)) break;
                 if(sound >= 0 && (t->state != CS_DEAD || t->state != CS_SPECTATOR)) playsound(sound, t);
                 int team = validteam(t->team) ? t->team : 0;
                 if(t->state!=CS_DEAD)
-                    particle_textcopy(t->abovehead(), text, PART_TEXT, 2000, teamtextcolor[team], 4.0f, -8);
+                    particle_textcopy(t->abovehead(), text, PART_TEXT, 2000, teamtextcolor[team], 4.0f, -8, "default");
                 conoutf(CON_TEAMCHAT, "%s \fs%s(team)\fr: \fs%s%s\fr", teamcolorname(t), teamtextcode[t->team], teamtextcode[t->team], text);
                 if(chatsound == 1) playsound(S_CHAT);
                 break;
@@ -1616,7 +1616,7 @@ namespace game
                 int scn = getint(p);
                 gameent *s = getclient(scn);
                 getstring(text, p);
-                filtertext(text, text, false, false, true, true);
+                filtertext(text, text, T_WHITESPACE | T_FORCESPACE);
                 if(!s || isignored(s->clientnum)) break;
                 conoutf(CON_CHAT, "%s \fs\f5(whisper)\fr: \fs\f5%s\fr", teamcolorname(s), text);
                 if(chatsound) playsound(S_CHAT);
@@ -1675,7 +1675,7 @@ namespace game
                     break;
                 }
                 getstring(text, p);
-                filtertext(text, text, false, false, true, false, MAXNAMELEN);
+                filtertext(text, text, T_WHITESPACE | T_NAME, MAXNAMELEN, MAXNAMEUNILEN);
                 if(!text[0]) copystring(text, "player"); // if no text is specified for the name change, change to default name
                 if(d->name[0]) // already connected but the client changed their name
                 {
@@ -1700,11 +1700,11 @@ namespace game
                 d->playercolor = getint(p);
 
                 getstring(text, p);
-                filtertext(text, text, false, false, false, false, MAXCOUNTRYCODELEN);
+                filtertext(text, text, T_NONE, MAXCOUNTRYCODELEN);
                 validcountrycode(d->country_code, text);
 
                 getstring(text, p);
-                filtertext(text, text, false, false, true, false, MAXSTRLEN);
+                filtertext(text, text, T_WHITESPACE, MAXSTRLEN);
                 copystring(d->country_name, text);
 
                 break;
@@ -1714,7 +1714,7 @@ namespace game
                 getstring(text, p);
                 if(d)
                 {
-                    filtertext(text, text, false, false, true, false, MAXNAMELEN);
+                    filtertext(text, text, T_WHITESPACE | T_NAME, MAXNAMELEN, MAXNAMEUNILEN);
                     if(!text[0]) copystring(text, "player");
                     if(strcmp(text, d->name))
                     {
@@ -2064,7 +2064,7 @@ namespace game
                 int type = getint(p);
                 getstring(text, p);
                 string name;
-                filtertext(name, text, false, false, false);
+                filtertext(name, text, T_NONE);
                 ident *id = getident(name);
                 switch(type)
                 {
@@ -2352,7 +2352,7 @@ namespace game
                 int bn = getint(p), on = getint(p), at = getint(p), sk = clamp(getint(p), 1, 101), pm = getint(p), col = getint(p), team = getint(p);
                 string name;
                 getstring(text, p);
-                filtertext(name, text, false, false, false, false, MAXNAMELEN);
+                filtertext(name, text, T_NAME, MAXNAMELEN, MAXNAMEUNILEN);
                 gameent *b = newclient(bn);
                 if(!b) break;
                 ai::init(b, at, on, sk, bn, pm, col, name, team);

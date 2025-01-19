@@ -1125,10 +1125,9 @@ namespace recorder
     {
         int w = hudw, h = hudh;
         if(forceaspect) w = int(ceil(h*forceaspect));
-        gettextres(w, h);
+        text::getres(w, h);
 
         hudmatrix.ortho(0, w, h, 0, -1, 1);
-        hudmatrix.scale(1/3.0f, 1/3.0f, 1);
         resethudmatrix();
 
         glEnable(GL_BLEND);
@@ -1139,7 +1138,8 @@ namespace recorder
         else if(totalsize >= 1e6) { totalsize /= 1e6; unit = "MB"; }
         else totalsize /= 1e3;
 
-        draw_textf("recorded %.1f%s %d%%", w*3-10*FONTH, h*3-FONTH-FONTH*3/2, totalsize, unit, int(calcquality()*100));
+        setfontsize(hudh * conscale / CONSOLETEXTROWS);
+        text::draw_as_console_fmt("recorded %.1f%s %d%%", w-10*FONTH, FONTH-FONTH/2, totalsize, unit, int(calcquality()*100));
 
         glDisable(GL_BLEND);
     }

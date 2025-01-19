@@ -45,17 +45,13 @@ void logoutf(const char *fmt, ...)
     va_end(args);
 }
 
-
 static void writelog(FILE *file, const char *buf)
 {
-    static uchar ubuf[512];
-    size_t len = strlen(buf), carry = 0;
-    while(carry < len)
-    {
-        size_t numu = encodeutf8(ubuf, sizeof(ubuf)-1, &((const uchar *)buf)[carry], len - carry, &carry);
-        if(carry >= len) ubuf[numu++] = '\n';
-        fwrite(ubuf, 1, numu, file);
-    }
+    static char ubuf[512];
+    filteruni(ubuf, buf, 511);
+    const size_t len = min((size_t)511, strlen(ubuf));
+    ubuf[len] = '\n';
+    fwrite(ubuf, 1, len+1, file);
 }
 
 static void writelogv(FILE *file, const char *fmt, va_list args)
@@ -810,14 +806,11 @@ static BOOL WINAPI consolehandler(DWORD dwCtrlType)
 
 static void writeline(logline &line)
 {
-    static uchar ubuf[512];
-    size_t len = strlen(line.buf), carry = 0;
-    while(carry < len)
-    {
-        size_t numu = encodeutf8(ubuf, sizeof(ubuf), &((uchar *)line.buf)[carry], len - carry, &carry);
-        DWORD written = 0;
-        WriteConsole(outhandle, ubuf, numu, &written, NULL);
-    }
+    static char ubuf[512];
+    filteruni(ubuf, line.buf, 511);
+    const size_t len = min((size_t)511, strlen(ubuf));
+    DWORD written;
+    WriteConsole(outhandle, ubuf, len, &written, NULL);
 }
 
 static void setupconsole()

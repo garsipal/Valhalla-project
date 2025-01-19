@@ -56,7 +56,6 @@ void geoip_lookup_ip(enet_uint32 ip, char *dst_country_code, char *dst_country_n
 
     #ifdef HAVE_MAXMINDDB
     static string text;
-    static uchar buf[MAXSTRLEN];
     if(!mmdb) return;
     int error;
 
@@ -75,18 +74,15 @@ void geoip_lookup_ip(enet_uint32 ip, char *dst_country_code, char *dst_country_n
         if(MMDB_SUCCESS == error && data.has_data && MMDB_DATA_TYPE_UTF8_STRING == data.type && data.data_size >= 2)
         {
             copystring(text, data.utf8_string, data.data_size+1);
-            filtertext(dst_country_code, text, false, false, false, false, MAXCOUNTRYCODELEN);
+            filtertext(dst_country_code, text, T_NONE, MAXCOUNTRYCODELEN);
         }
 
         // get country name
         error = MMDB_get_value(&result.entry, &data, "country", "names", "en", NULL);
         if(MMDB_SUCCESS == error && data.has_data && MMDB_DATA_TYPE_UTF8_STRING == data.type)
         {
-            size_t len = decodeutf8(buf, sizeof(buf)-1, (const uchar *)data.utf8_string, data.data_size);
-            if(len > 0) {
-                buf[len] = 0;
-                copystring(dst_country_name, (const char*)buf, len+1);
-            }
+            copystring(text, data.utf8_string, data.data_size <= MAXSTRLEN ? data.data_size : MAXSTRLEN);
+            filtertext(dst_country_name, text, T_WHITESPACE | T_FORCESPACE, MAXSTRLEN);
         }
     }
     #endif

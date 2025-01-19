@@ -450,7 +450,7 @@ struct ctfclientmode : clientmode
             if(hud->holdingflag && f.team == hud->team)
             {
                 vec base = f.spawnloc;
-                particle_hud_mark(base, 2, 1, PART_GAME_ICONS, 1, teamtextcolor[hud->team], 4.0f);
+                particle_hud_text(base, "GOAL", PART_TEXT, 1, teamtextcolor[hud->team], 4.0f, "wide");
             }
             else if(f.owner)
             {

@@ -1,6 +1,7 @@
 // command.cpp: implements the parsing and execution of a tiny script language which
 // is largely backwards compatible with the quake console language.
 
+#include "unicode.h"
 #include "engine.h"
 
 hashnameset<ident> idents; // contains ALL vars/commands/aliases
@@ -924,22 +925,34 @@ const char *parsestring(const char *p)
 int unescapestring(char *dst, const char *src, const char *end)
 {
     char *start = dst;
-    while(src < end)
+    uint c;
+    uint s = uni_getchar(src, c);
+    for(const char *p = src; src < end; p += s, s = uni_getchar(p, c))
     {
-        int c = *src++;
+        if(iscubecntrl(c) || c == 0xFFFD)
+        {
+            src += s;
+            continue;
+        }
         if(c == '^')
         {
-            if(src >= end) break;
-            int e = *src++;
-            switch(e)
+            if(src+1 >= end) break;
+            switch(*(src+1))
             {
-                case 'n': *dst++ = '\n'; break;
-                case 't': *dst++ = '\t'; break;
-                case 'f': *dst++ = '\f'; break;
-                default: *dst++ = e; break;
+                case 'n': *dst++ = '\n'; ++src; ++p; break;
+                case 'r': *dst++ = '\r'; ++src; ++p; break;
+                case 't': *dst++ = '\t'; ++src; ++p; break;
+                case 'f': *dst++ = '\f'; ++src; ++p; break;
+                case '^': *dst++ = '^' ; ++src; ++p; break;
+                default: break;
             }
+            ++src;
         }
-        else *dst++ = c;
+        else
+        {
+            loopi(s) *dst++ = p[i];
+            src += s;
+        }
     }
     *dst = '\0';
     return dst - start;
@@ -3162,21 +3175,29 @@ bool execfile(const char *cfgfile, bool msg)
 }
 ICOMMAND(exec, "sb", (char *file, int *msg), intret(execfile(file, *msg != 0) ? 1 : 0));
 
-const char *escapestring(const char *s)
+const char *escapestring(const char *str)
 {
     stridx = (stridx + 1)%4;
     vector<char> &buf = strbuf[stridx];
     buf.setsize(0);
     buf.add('"');
-    for(; *s; s++) switch(*s)
+    uint c;
+    uint s = uni_getchar(str, c);
+    for(const char *p = str; c; p += s, s = uni_getchar(p, c)) switch(c)
     {
         case '\n': buf.put("^n", 2); break;
+        case '\r': buf.put("^r", 2); break;
         case '\t': buf.put("^t", 2); break;
         case '\f': buf.put("^f", 2); break;
         case '"': buf.put("^\"", 2); break;
         case '^': buf.put("^^", 2); break;
-        default: buf.add(*s); break;
+        default:
+        {
+            if(iscubecntrl(c) || c == 0xFFFD) break; // filter out control characters
+            buf.put(p, s); break;
+        }
     }
+
     buf.put("\"\0", 2);
     return buf.getbuf();
 }
@@ -3216,7 +3237,7 @@ bool validateblock(const char *s)
 #ifndef STANDALONE
 void writecfg(const char *name)
 {
-    stream *f = openutf8file(path(name && name[0] ? name : game::savedconfig(), true), "w");
+    stream *f = openfile(path(name && name[0] ? name : game::savedconfig(), true), "w");
     if(!f) return;
     f->printf("// automatically written on exit, DO NOT MODIFY\n// delete this file to have %s overwrite these settings\n// modify settings in game, or put settings in %s to override anything\n\n", game::defaultconfig(), game::autoexec());
     game::writeclientinfo(f);
@@ -3670,30 +3691,39 @@ COMMAND(at, "si1V");
 
 void substr(char *s, int *start, int *count, int *numargs)
 {
-    int len = strlen(s), offset = clamp(*start, 0, len);
-    commandret->setstr(newstring(&s[offset], *numargs >= 3 ? clamp(*count, 0, len - offset) : len - offset));
+    int len = strlen(s), offset = clamp(uni_offset(s, *start), 0, len);
+    int n = *numargs >= 3 ? clamp(uni_offset(s, *start + *count) - offset, 0, len - offset) : len - offset; 
+    commandret->setstr(newstring(&s[offset], n));
 }
 COMMAND(substr, "siiN");
 
 void chopstr(char *s, int *lim, char *ellipsis)
 {
-    int len = strlen(s), maxlen = abs(*lim);
-    if(len > maxlen)
+    const int uni_len = uni_strlen(s);
+    int maxlen = abs(*lim);
+    if(uni_len > maxlen)
     {
-        int elen = strlen(ellipsis);
-        maxlen = max(maxlen, elen);
-        char *chopped = newstring(maxlen);
-        if(*lim < 0)
+        const int elen = strlen(ellipsis), uni_elen = uni_strlen(ellipsis);
+        maxlen = max(maxlen, uni_elen);
+        char *chopped = newstring(4 * maxlen);
+        if(*lim < 0) // strchop "abcdef" -3 "" => def ; strchop "abcdef" -3 "AB" => ABf ; strchop "abcdef" -3 "ABCD" => ABCD
         {
+            uint _c;
+            const int offset = uni_negoffset(s, maxlen - uni_elen);
+            int n = uni_offset(s + offset, maxlen - uni_elen);
+            n += uni_getchar(s + offset + n, _c);
+
             memcpy(chopped, ellipsis, elen);
-            memcpy(&chopped[elen], &s[len - (maxlen - elen)], maxlen - elen);
+            memcpy(&chopped[elen], &s[offset], n);
+            chopped[elen+n] = '\0';
         }
-        else
+        else // strchop "abcdef" 3 "" => abc ; strchop "abcdef" 3 "AB" => aAB ; strchop "abcdef" 3 "ABCD" => ABCD
         {
-            memcpy(chopped, s, maxlen - elen);
-            memcpy(&chopped[maxlen - elen], ellipsis, elen);
+            const int n = uni_offset(s, maxlen - uni_elen);
+            memcpy(chopped, s, n);
+            memcpy(&chopped[n], ellipsis, elen);
+            chopped[elen+n] = '\0';
         }
-        chopped[maxlen] = '\0';
         commandret->setstr(chopped);
     }
     else result(s);
@@ -3715,7 +3745,7 @@ ICOMMAND(stripcolors, "s", (char *s),
 {
     int len = strlen(s);
     char *d = newstring(len);
-    filtertext(d, s, false, true, true, false, len);
+    filtertext(d, s, T_NEWLINES | T_WHITESPACE, len);
     stringret(d);
 });
 
@@ -4407,7 +4437,7 @@ CMPSCMD(>=s, >=);
 
 ICOMMAND(echo, "C", (char *s), conoutf(CON_ECHO, "\f1%s", s));
 ICOMMAND(error, "C", (char *s), conoutf(CON_ERROR, "%s", s));
-ICOMMAND(strstr, "ss", (char *a, char *b), { char *s = strstr(a, b); intret(s ? s-a : -1); });
+ICOMMAND(strstr, "ss", (char *a, char *b), { char *s = strstr(a, b); intret(s ? uni_index(a, s-a) : -1); });
 ICOMMAND(strrstr, "ss", (char *a, char *b),
 {
     if(!b[0]) intret(strlen(a));
@@ -4415,14 +4445,20 @@ ICOMMAND(strrstr, "ss", (char *a, char *b),
     {
         char *last = NULL;
         for(char *cur = a; char *s = strstr(cur, b); last = s, cur = s+1);
-        intret(last ? last-a : -1);
+        intret(last ? uni_index(a, last-a) : -1);
     }
 });
-ICOMMAND(strlen, "s", (char *s), intret(strlen(s)));
-ICOMMAND(strcode, "si", (char *s, int *i), intret(*i > 0 ? (memchr(s, 0, *i) ? 0 : uchar(s[*i])) : uchar(s[0])));
-ICOMMAND(codestr, "i", (int *i), { char *s = newstring(1); s[0] = char(*i); s[1] = '\0'; stringret(s); });
-ICOMMAND(struni, "si", (char *s, int *i), intret(*i > 0 ? (memchr(s, 0, *i) ? 0 : cube2uni(s[*i])) : cube2uni(s[0])));
-ICOMMAND(unistr, "i", (int *i), { char *s = newstring(1); s[0] = uni2cube(*i); s[1] = '\0'; stringret(s); });
+ICOMMAND(strlen, "s", (char *s), intret(uni_strlen(s)));
+ICOMMAND(strcode, "si", (char *s, int *i), intret(uni_charat(s, *i)));
+ICOMMAND(codestr, "i", (int *i),
+{
+    char *dst = newstring(4);
+    uni_code2str(*i, dst);
+    stringret(dst);
+})
+ICOMMAND(strbytelen, "s", (char *s), intret(strlen(s)));
+ICOMMAND(char2byteindex, "si", (char *s, int *i), intret(uni_offset(s, *i)));
+ICOMMAND(byte2charindex, "si", (char *s, int *i), intret(uni_index(s, *i)));
 
 int naturalsort(const char *a, const char *b)
 {
@@ -4450,18 +4486,20 @@ int naturalsort(const char *a, const char *b)
 }
 ICOMMAND(naturalsort, "ss", (char *a, char *b), intret(naturalsort(a,b)<=0));
 
-#define STRMAPCOMMAND(name, map) \
-    ICOMMAND(name, "s", (char *s), \
-    { \
-        int len = strlen(s); \
-        char *m = newstring(len); \
-        loopi(len) m[i] = map(s[i]); \
-        m[len] = '\0'; \
-        stringret(m); \
-    })
-
-STRMAPCOMMAND(strlower, cubelower);
-STRMAPCOMMAND(strupper, cubeupper);
+ICOMMAND(strlower, "s", (char *s), {
+    int len = strlen(s);
+    char *m = newstring(len);
+    uni_strlower(s, m);
+    m[len] = '\0';
+    stringret(m);
+});
+ICOMMAND(strupper, "s", (char *s), {
+    int len = strlen(s);
+    char *m = newstring(len);
+    uni_strupper(s, m);
+    m[len] = '\0';
+    stringret(m);
+});
 
 char *strreplace(const char *s, const char *oldval, const char *newval, const char *newval2)
 {
@@ -4492,8 +4530,8 @@ ICOMMAND(strreplace, "ssss", (char *s, char *o, char *n, char *n2), commandret->
 void strsplice(const char *s, const char *vals, int *skip, int *count)
 {
     int slen = strlen(s), vlen = strlen(vals),
-        offset = clamp(*skip, 0, slen),
-        len = clamp(*count, 0, slen - offset);
+        offset = clamp(uni_offset(s, *skip), 0, slen),
+        len = clamp(uni_offset(s+offset, *count), 0, slen - offset);
     char *p = newstring(slen - len + vlen);
     if(offset) memcpy(p, s, offset);
     if(vlen) memcpy(&p[offset], vals, vlen);

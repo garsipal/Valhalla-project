@@ -1,18 +1,26 @@
 // console.cpp: the console buffer, its display, and command line control
 
+#include "unicode.h"
 #include "engine.h"
 
 #define MAXCONLINES 1000
-struct cline { char *line; int type, outtime; };
+struct cline { char *line; int type, outtime; float fontsize, w; text::Label label; };
 reversequeue<cline, MAXCONLINES> conlines;
 
-int commandmillis = -1;
+int commandmillis = -1, inputmillis = 0;
 string commandbuf;
 char *commandaction = NULL, *commandprompt = NULL;
 enum { CF_COMPLETE = 1<<0, CF_EXECUTE = 1<<1 };
 int commandflags = 0, commandpos = -1;
 
-VARFP(maxcon, 10, 200, MAXCONLINES, { while(conlines.length() > maxcon) delete[] conlines.pop().line; });
+VARFP(maxcon, 10, 200, MAXCONLINES,
+{
+    while(conlines.length() > maxcon)
+    {
+        cline &cl = conlines.pop();
+        delete[] cl.line;
+    }
+});
 
 #define CONSTRLEN 512
 
@@ -49,15 +57,19 @@ void conline(int type, const char *sf) // add a line to the console buffer
         if(!(prev&CON_TAG_MASK)) break;
         if(type == prev)
         {
-            buf = conlines.remove(i).line;
+            buf = conlines[i].line;
+            //buf = conlines.remove(i).line;
+            conlines.remove(i);
             break;
         }
     }
     if(!buf) buf = conlines.length() >= maxcon ? conlines.remove().line : newstring("", CONSTRLEN-1);
     cline &cl = conlines.add();
+    cl.label.clear();
     cl.line = buf;
     cl.type = type;
     cl.outtime = totalmillis; // for how long to keep line on screen
+    cl.fontsize = cl.w = 0;
     defformatstring(prefixedsf, "%s%s", getprefix(type), sf);
     copystring(cl.line, prefixedsf, CONSTRLEN);
 }
@@ -90,11 +102,15 @@ float rendercommand(float x, float y, float w)
     const char *prompt = commandprompt ? commandprompt : ">";
     formatstring(buf, "%s %s", prompt, commandbuf);
 
-    float width, height;
-    text_boundsf(buf, width, height, w);
-    y -= height;
-    draw_text(buf, x, y, 0xFF, 0xFF, 0xFF, 0xFF, commandpos>=0 ? commandpos+1 + strlen(prompt) : strlen(buf), w);
-    return height;
+    pushfont();
+    setfont("default");
+    const text::Label label = text::prepare_for_console(buf, w, commandpos>=0 ? commandpos+1 + strlen(prompt) : strlen(buf));
+    y -= label.height();
+    
+    label.draw_as_console(x, y);
+    
+    popfont();
+    return label.height();
 }
 
 VARP(consize, 0, 5, 100);
@@ -129,9 +145,23 @@ void setconskip(int &skip, int filter, int n)
 ICOMMAND(conskip, "i", (int *n), setconskip(conskip, UI::uivisible("fullconsole") ? fullconfilter : confilter, *n));
 ICOMMAND(miniconskip, "i", (int *n), setconskip(miniconskip, miniconfilter, *n));
 
-ICOMMAND(clearconsole, "", (), { while(conlines.length()) delete[] conlines.pop().line; });
+ICOMMAND(clearconsole, "", (),
+{
+    while(conlines.length())
+    {
+        cline &cl = conlines.pop();
+        delete[] cl.line;
+        cl.label.clear();
+    }
+});
 
-float drawconlines(int conskip, int confade, float conwidth, float conheight, float conoff, int filter, float y = 0, int dir = 1)
+// free conline textures, necessary when changing font settings or calling `resetgl()`
+void clearconsoletextures()
+{
+    loopv(conlines) conlines[i].label.clear();
+}
+
+float drawconlines(int conskip, int confade, float conwidth, float conheight, float conoff, int maxlines, bool full, int filter, float y = 0, int dir = 1)
 {
     filter &= CON_FLAGS;
     int numl = conlines.length(), offset = min(conskip, numl);
@@ -147,15 +177,26 @@ float drawconlines(int conskip, int confade, float conwidth, float conheight, fl
     }
 
     int totalheight = 0;
+    int n = 0;
     loopi(numl) //determine visible height
     {
         // shuffle backwards to fill if necessary
         int idx = offset+i < numl ? offset+i : --offset;
         if(!(conlines[idx].type&filter)) continue;
         char *line = conlines[idx].line;
-        float width, height;
-        text_boundsf(line, width, height, conwidth);
-        if(totalheight + height > conheight) { numl = i; if(offset == idx) ++offset; break; }
+        int width, height;
+        const text::Label& label = conlines[idx].label;
+        if(conlines[idx].w != conwidth || conlines[idx].fontsize != fontsize || !label.valid())
+        {
+            text::measure(line, conwidth, width, height);
+        }
+        else
+        {
+            width = label.width();
+            height = label.height();
+        }
+        if(maxlines > 0) { if(++n > maxlines) { numl = i; if(offset == idx) ++offset; break; } }
+        else if(totalheight + height > conheight) { numl = i; if(offset == idx) ++offset; break; }
         totalheight += height;
     }
     if(dir > 0) y = conoff;
@@ -164,32 +205,50 @@ float drawconlines(int conskip, int confade, float conwidth, float conheight, fl
         int idx = offset + (dir > 0 ? numl-i-1 : i);
         if(!(conlines[idx].type&filter)) continue;
         char *line = conlines[idx].line;
-        float width, height;
-        text_boundsf(line, width, height, conwidth);
-        if(dir <= 0) y -= height;
-        draw_text(line, conoff, y, 0xFF, 0xFF, 0xFF, 0xFF, -1, conwidth);
-        if(dir > 0) y += height;
+        text::Label& label = conlines[idx].label;
+        if(conlines[idx].w != conwidth || conlines[idx].fontsize != fontsize || !label.valid())
+        {
+            if(!full) label = text::prepare_for_console(line, conwidth, -1);
+            else label = text::prepare(line, conwidth, bvec(255, 255, 255), -1);
+            conlines[idx].w = conwidth;
+            conlines[idx].fontsize = fontsize;
+        }
+        if(dir <= 0) y -= label.height();
+        if(label.valid())
+        {
+            if(!full) label.draw_as_console(conoff, y);
+            else label.draw(conoff, y);
+        }
+        if(dir > 0) y += label.height();
     }
     return y+conoff;
 }
 
 float renderfullconsole(float w, float h)
 {
-    float conpad = FONTH/2,
+    pushfont();
+    setfont("default");
+    setfontsize(hudh * conscale / CONSOLETEXTROWS);
+    float conpad = FONTH*1.5/2,
           conheight = h - 2*conpad,
           conwidth = w - 2*conpad;
-    drawconlines(conskip, 0, conwidth, conheight, conpad, fullconfilter);
+    drawconlines(conskip, 0, conwidth, conheight, conpad, 0, true, fullconfilter);
+    popfont();
     return conheight + 2*conpad;
 }
 
 float renderconsole(float w, float h, float abovehud)
 {
-    float conpad = FONTH/2,
-          conheight = min(float(FONTH*consize), h - 2*conpad),
+    float conpad = FONTH*1.5/2,
+          conheight = min(float(FONTH*1.5*consize), h - 2*conpad),
           conwidth = w - 2*conpad - game::clipconsole(w, h);
-    float y = drawconlines(conskip, confade, conwidth, conheight, conpad, confilter);
+    pushfont();
+    setfont("default");
+    setfontsize(hudh * conscale / CONSOLETEXTROWS);
+    float y = drawconlines(conskip, confade, conwidth, conheight, conpad, consize, false, confilter);
     if(miniconsize && miniconwidth)
-        drawconlines(miniconskip, miniconfade, (miniconwidth*(w - 2*conpad))/100, min(float(FONTH*miniconsize), abovehud - y), conpad, miniconfilter, abovehud, -1);
+        drawconlines(miniconskip, miniconfade, (miniconwidth*(w - 2*conpad))/100, min(float(FONTH*1.5*miniconsize), abovehud - y), conpad, miniconsize, false, miniconfilter, abovehud, -1);
+    popfont();
     return y;
 }
 
@@ -353,6 +412,7 @@ VARP(fullconsolecommand, 0, 1, 1);
 
 void inputcommand(char *init, char *action = NULL, char *prompt = NULL, char *flags = NULL) // turns input to the command line on or off
 {
+    inputmillis = totalmillis;
     commandmillis = init ? totalmillis : -1;
     textinput(commandmillis >= 0, TI_CONSOLE);
     keyrepeat(commandmillis >= 0, KR_CONSOLE);
@@ -395,6 +455,7 @@ struct hline
 
     void restore()
     {
+        inputmillis = totalmillis;
         copystring(commandbuf, buf);
         if(commandpos >= (int)strlen(commandbuf)) commandpos = -1;
         DELETEA(commandaction);
@@ -540,6 +601,7 @@ ICOMMAND(iscmdlineopen, "", (), intret(commandmillis >= 0 ? 1 : 0));
 bool consoleinput(const char *str, int len)
 {
     if(commandmillis < 0) return false;
+    inputmillis = totalmillis;
 
     resetcomplete();
     int cmdlen = (int)strlen(commandbuf), cmdspace = int(sizeof(commandbuf)) - (cmdlen+1);
@@ -586,12 +648,31 @@ void pasteconsole()
     if(!SDL_HasClipboardText()) return;
     char *cb = SDL_GetClipboardText();
     if(!cb) return;
-    string paste;
-    size_t decoded = decodeutf8((uchar *)paste, sizeof(paste)-1, (const uchar *)cb, strlen(cb));
-    paste[decoded] = '\0';
-    consoleinput(paste, decoded);
+    consoleinput(cb, strlen(cb));
     SDL_free(cb);
 }
+
+// returns the contents of the clipboard
+ICOMMAND(getclipboard, "", (),
+{
+    if(!SDL_HasClipboardText())
+    {
+        result("");
+    }
+    else
+    {
+        char *cb = SDL_GetClipboardText();
+        if(!cb)
+        {
+            result("");
+        }
+        else
+        {
+            result(cb);
+            SDL_free(cb);
+        }
+    }
+});
 
 static char *skipword(char *s)
 {
@@ -618,6 +699,7 @@ static char *skipwordrev(char *s, int n = -1)
 bool consolekey(int code, bool isdown)
 {
     if(commandmillis < 0) return false;
+    inputmillis = totalmillis;
 
     #ifdef __APPLE__
         #define MOD_KEYS (KMOD_LGUI|KMOD_RGUI)
@@ -647,7 +729,9 @@ bool consolekey(int code, bool isdown)
             {
                 int len = (int)strlen(commandbuf);
                 if(commandpos<0) break;
-                int end = commandpos+1;
+                uint _codepoint;
+                const int s = uni_getchar(&commandbuf[commandpos], _codepoint);
+                int end = commandpos+s;
                 if(SDL_GetModState()&SKIP_KEYS) end = skipword(&commandbuf[commandpos]) - commandbuf;
                 memmove(&commandbuf[commandpos], &commandbuf[end], len + 1 - end);
                 resetcomplete();
@@ -659,7 +743,7 @@ bool consolekey(int code, bool isdown)
             {
                 int len = (int)strlen(commandbuf), i = commandpos>=0 ? commandpos : len;
                 if(i<1) break;
-                int start = i-1;
+                int start = i - uni_prevchar(commandbuf, i);
                 if(SDL_GetModState()&SKIP_KEYS) start = skipwordrev(commandbuf, i) - commandbuf;
                 memmove(&commandbuf[start], &commandbuf[i], len - i + 1);
                 resetcomplete();
@@ -670,15 +754,19 @@ bool consolekey(int code, bool isdown)
 
             case SDLK_LEFT:
                 if(SDL_GetModState()&SKIP_KEYS) commandpos = skipwordrev(commandbuf, commandpos) - commandbuf;
-                else if(commandpos>0) commandpos--;
-                else if(commandpos<0) commandpos = (int)strlen(commandbuf)-1;
+                else if(commandpos>0) commandpos -= uni_prevchar(commandbuf, commandpos);
+                else if(commandpos<0) commandpos = (int)strlen(commandbuf) - uni_prevchar(commandbuf, strlen(commandbuf));
                 break;
 
             case SDLK_RIGHT:
                 if(commandpos>=0)
                 {
                     if(SDL_GetModState()&SKIP_KEYS) commandpos = skipword(&commandbuf[commandpos]) - commandbuf;
-                    else ++commandpos;
+                    else
+                    {
+                        uint _codepoint;
+                        commandpos += uni_getchar(&commandbuf[commandpos], _codepoint);
+                    }
                     if(commandpos>=(int)strlen(commandbuf)) commandpos = -1;
                 }
                 break;

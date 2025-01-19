@@ -1031,21 +1031,20 @@ void setupshaders()
         "uniform mat4 hudmatrix;\n"
         "varying vec2 texcoord0;\n"
         "varying vec4 colorscale;\n"
-        "void main(void) {\n"
+        "void main(void)\n"
+        "{\n"
         "    gl_Position = hudmatrix * vvertex;\n"
         "    texcoord0 = vtexcoord0;\n"
         "    colorscale = vcolor;\n"
         "}\n",
-        "uniform sampler2D tex0;\n"
-        "uniform vec4 textparams;\n"
+        "uniform sampler2DRect tex0;\n"
         "varying vec2 texcoord0;\n"
         "varying vec4 colorscale;\n"
         "fragdata(0) vec4 fragcolor;\n"
-        "void main(void) {\n"
-        "    float dist = texture2D(tex0, texcoord0).r;\n"
-        "    float border = smoothstep(textparams.x, textparams.y, dist);\n"
-        "    float outline = smoothstep(textparams.z, textparams.w, dist);\n"
-        "    fragcolor = vec4(colorscale.rgb * outline, colorscale.a * border);\n"
+        "void main(void)\n"
+        "{\n"
+        "    fragcolor = colorscale * texture2DRect(tex0, texcoord0);\n"
+        "    if(fragcolor.a != 0) fragcolor.rgb /= fragcolor.a;\n"
         "}\n");
     hudnotextureshader = newshader(0, "<init>hudnotexture",
         "attribute vec4 vvertex, vcolor;\n"
@@ -1546,7 +1545,7 @@ void cleanupshaders()
     cleanuppostfx(true);
 
     loadedshaders = false;
-    nullshader = hudshader = hudnotextureshader = NULL;
+    nullshader = hudshader = hudtextshader = hudnotextureshader = NULL;
     enumerate(shaders, Shader, s, s.cleanup());
     Shader::lastshader = NULL;
     glUseProgram_(0);

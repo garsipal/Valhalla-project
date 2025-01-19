@@ -863,7 +863,7 @@ namespace game
     void initclient()
     {
         self = spawnstate(new gameent);
-        filtertext(self->name, "player", false, false, true, false, MAXNAMELEN);
+        filtertext(self->name, "player", T_WHITESPACE | T_NAME, MAXNAMELEN, MAXNAMEUNILEN);
         players.add(self);
     }
 
@@ -988,8 +988,8 @@ namespace game
     bool duplicatename(gameent *d, const char *name = NULL, const char *alt = NULL)
     {
         if(!name) name = d->name;
-        if(alt && d != self && !strcmp(name, alt)) return true;
-        loopv(players) if(d!=players[i] && !strcmp(name, players[i]->name)) return true;
+        if(alt && d != self && duplicatestring(name, alt)) return true;
+        loopv(players) if(d!=players[i] && duplicatestring(name, players[i]->name)) return true;
         return false;
     }
 

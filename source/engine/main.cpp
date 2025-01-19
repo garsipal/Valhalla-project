@@ -28,6 +28,7 @@ void cleanup()
         if(screen) SDL_SetWindowFullscreen(screen, 0);
     #endif
     SDL_Quit();
+    done_pangocairo();
 }
 
 extern void writeinitcfg();
@@ -67,6 +68,7 @@ void fatal(const char *s, ...)    // failure exit
                 #endif
             }
             SDL_Quit();
+            done_pangocairo();
             SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Tesseract fatal error", msg, NULL);
         }
     }
@@ -107,7 +109,7 @@ VARFN(screenh, scr_h, SCR_MINH, -1, SCR_MAXH, initwarning("screen resolution"));
 
 void writeinitcfg()
 {
-    stream *f = openutf8file("config/init.cfg", "w");
+    stream *f = openfile("config/init.cfg", "w");
     if(!f) return;
     f->printf("// automatically written on exit, DO NOT MODIFY\n// modify settings in game\n");
     extern int fullscreen;
@@ -207,22 +209,29 @@ void renderbackgroundview(int w, int h, const char *caption, Texture *mapshot, c
 
     if(caption)
     {
-        int tw = text_width(caption);
-        float tsz = 0.04f*lw/FONTH,
+        setfontsize(h * 1.5 / LOADSCREENTEXTROWS);
+        pushfont();
+        setfont("wide");
+        const text::Label caption_label = text::prepare(caption, 0);
+        popfont();
+        const int tw = caption_label.width();
+        const float tsz = 0.04f*lw/FONTH,
               tx = 0.5f*(w - tw*tsz), ty = h - 0.075f*1.5f*lw - FONTH*tsz;
-        pushhudtranslate(tx, ty, tsz);
-        draw_text(caption, 0, 0);
-        pophudmatrix();
+
+        caption_label.draw(tx, ty);
     }
     if(mapshot || mapname)
     {
-        float infowidth = 14*FONTH, sz = 0.35f*lw,
+        setfontsize(h * 1 / LOADSCREENTEXTROWS);
+        text::Label info_label;
+        float infowidth = 0.5f*lw, sz = 0.35f*lw,
             msz = (0.85f*lw - sz)/(infowidth + FONTH),
             x = 0.5f*w, ly = 0.5f*lw, y = (0.5f*(h*0.5f - ly) + ly) - sz/15,
-            mx = 0, my = 0, mw = 0, mh = 0;
+            mx = 0, my = 0, mw = 0;
         if(mapinfo)
         {
-            text_boundsf(mapinfo, mw, mh, infowidth);
+            info_label = text::prepare(mapinfo, infowidth);
+            mw = info_label.width();
             x -= 0.5f*mw*msz;
             if(mapshot && mapshot!=notexture)
             {
@@ -239,17 +248,19 @@ void renderbackgroundview(int w, int h, const char *caption, Texture *mapshot, c
         }
         if(mapname)
         {
-            float tw = text_widthf(mapname), tsz = sz/(8*FONTH), tx = max(0.5f*(mw*msz - tw*tsz), 0.0f);
-            pushhudtranslate(x+mx+tx, y, tsz);
-            draw_text(mapname, 0, 0);
-            pophudmatrix();
+            setfontsize(h * 1.5 / LOADSCREENTEXTROWS);
+            pushfont();
+            setfont("wide");
+            const text::Label name_label = text::prepare(mapname, 0);
+            popfont();
+            float tsz = sz/(8*FONTH);
+
+            name_label.draw(x + sz + (infowidth - name_label.width()) / 2, y);
             my = 1.5f*FONTH*tsz;
         }
         if(mapinfo)
         {
-            pushhudtranslate(x+mx, y+my, msz);
-            draw_text(mapinfo, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF, -1, infowidth);
-            pophudmatrix();
+            info_label.draw(x+mx, y+my);
         }
     }
 
@@ -278,7 +289,7 @@ void renderbackground(const char *caption, Texture *mapshot, const char *mapname
     int w = hudw, h = hudh;
     if(forceaspect) w = int(ceil(h*forceaspect));
     getbackgroundres(w, h);
-    gettextres(w, h);
+    text::getres(w, h);
 
     if(force)
     {
@@ -339,13 +350,13 @@ void renderprogressview(int w, int h, float bar, const char *text)   // also use
 
     if(text)
     {
-        int tw = text_width(text);
+        setfontsize(h * 0.8 / LOADSCREENTEXTROWS);
+        const text::Label label = text::prepare(text, 0, bvec(255, 255, 255));
+        const int tw = label.width();
         float tsz = bh*0.6f/FONTH;
         if(tw*tsz > mw) tsz = mw/tw;
 
-        pushhudtranslate(bx+sw, by + (bh - FONTH*tsz)/2, tsz);
-        draw_text(text, 0, 0);
-        pophudmatrix();
+        label.draw(bx+sw, by+ (bh - FONTH * tsz)/2);
     }
 
     glDisable(GL_BLEND);
@@ -374,7 +385,7 @@ void renderprogress(float bar, const char *text, bool background)   // also used
     int w = hudw, h = hudh;
     if(forceaspect) w = int(ceil(h*forceaspect));
     getbackgroundres(w, h);
-    gettextres(w, h);
+    text::getres(w, h);
 
     extern int mesa_swap_bug, curvsync;
     bool forcebackground = progressbackground || (mesa_swap_bug && (curvsync || totalmillis==1));
@@ -676,6 +687,7 @@ void resetgl()
        !reloadtexture("data/interface/loading_frame.png") ||
        !reloadtexture("data/interface/loading_bar.png"))
         fatal("Failed to reload core texture");
+    clearconsoletextures();
     reloadfonts();
     inbetweenframes = true;
     renderbackground("Initializing");
@@ -821,9 +833,7 @@ void checkinput()
             case SDL_TEXTINPUT:
                 if(textinputmask && int(event.text.timestamp-textinputtime) >= textinputfilter)
                 {
-                    uchar buf[SDL_TEXTINPUTEVENT_TEXT_SIZE+1];
-                    size_t len = decodeutf8(buf, sizeof(buf)-1, (const uchar *)event.text.text, strlen(event.text.text));
-                    if(len > 0) { buf[len] = '\0'; processtextinput((const char *)buf, len); }
+                    processtextinput(event.text.text, strlen(event.text.text));
                 }
                 break;
 
@@ -1197,6 +1207,9 @@ int main(int argc, char **argv)
     gl_init();
     notexture = textureload("data/texture/world/base/notexture.png");
     if(!notexture) fatal("Could not find core textures");
+
+    logoutf("init: pangocairo");
+    if(!init_pangocairo()) fatal("Could not initialize pangocairo");
 
     logoutf("init: console");
     if(!execfile("config/stdlib.cfg", false)) fatal("Cannot find required configuration files (\"/config/stdlib.cfg\")!\nYou might not be running from the main folder.");   // this is the first file we load.

@@ -180,7 +180,7 @@ namespace game
         {
             if(servdesc[0])
             {
-                filtertext(servdesc, servdesc, true, false);
+                filtertext(servdesc, servdesc, T_COLORS | T_WHITESPACE);
                 result(servdesc);
             }
             else

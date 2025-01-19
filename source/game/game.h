@@ -2,6 +2,7 @@
 #define __GAME_H__
 
 #include "cube.h"
+#include "unicode.h"
 
 // animations
 
@@ -424,7 +425,8 @@ struct gamestate
 
 #include "monster.h"
 
-const int MAXNAMELEN = 15;
+const int MAXNAMELEN = 60; // bytes
+const int MAXNAMEUNILEN = 15; // unicode characters
 const int MAXCOUNTRYCODELEN = 8;
 
 const int MAXTEAMS = 2;
@@ -663,6 +665,19 @@ namespace physics
 
     extern int physsteps;
     extern int liquidtransition(physent* d, int material, bool isinwater);
+}
+
+// checks if two strings are visually identical or very similar
+static inline bool duplicatestring(const char *a, const char *b)
+{
+    if(uni_strlen(a) != uni_strlen(b)) return false;
+    uint c, d;
+    size_t s = uni_getchar(a, c), z = uni_getchar(b, d);
+    for(const char *p = a, *q = b; c; p += s, q += z, s = uni_getchar(p, c), z = uni_getchar(q, d))
+    {
+        if(homoglyph(c) != homoglyph(d)) return false;
+    }
+    return true;
 }
 
 namespace game

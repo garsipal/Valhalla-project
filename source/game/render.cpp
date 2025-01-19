@@ -208,7 +208,7 @@ namespace game
         }
         if(strcmp(self->preferred_flag, customflag) != 0)
         {
-            filtertext(self->preferred_flag, customflag, false, false, false, false, MAXCOUNTRYCODELEN);
+            filtertext(self->preferred_flag, customflag, T_NONE, MAXCOUNTRYCODELEN);
             addmsg(N_COUNTRY, "rs", self->preferred_flag);
         }
     }
@@ -572,7 +572,7 @@ namespace game
         else if (d->state == CS_ALIVE && !hidenames())
         {
             int team = m_teammode && validteam(d->team) ? d->team : 0;
-            particle_text(pos, d->info, PART_TEXT, 1, teamtextcolor[team], 2.0f);
+            particle_text(pos, d->info, PART_TEXT, 1, teamtextcolor[team], 2.0f, 0, "wide");
         }
         booteffect(d);
     }
